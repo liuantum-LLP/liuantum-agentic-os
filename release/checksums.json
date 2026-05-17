@@ -1,0 +1,65 @@
+{
+  "status": "created",
+  "checksums": [
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/src-tauri/target/release/bundle/dmg/Liuant Agentic OS_1.0.0_aarch64.dmg",
+      "sha256": "8486db982053265ba781b1cd1e8dbfed900a8f0e7bf334d7b6d20b411a99a871"
+    },
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/src-tauri/target/release/build/liuant-agentic-os-2bcd3021957e2c06/out/__global-api-script.js",
+      "sha256": "b9390e7c7bceff6696e238a50cdf378f70946f4443faea1bbb7fddc53da79057"
+    },
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/src-tauri/target/release/build/liuant-agentic-os-2bcd3021957e2c06/out/tauri-codegen-assets/ccaeed92062258a0f90ac92eea8ded11950ecdf82bb61b9f4c21bfaf8b8d8168.html",
+      "sha256": "27afe2647ba763c428028ecc926e60c2bc288d821e36eafd6610ec9c8f301984"
+    },
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/src-tauri/target/release/build/liuant-agentic-os-2bcd3021957e2c06/out/tauri-codegen-assets/17fdcb14681062d09a51a69cba1229a119bc794df71be3b3337b58a7ac20fb38.html",
+      "sha256": "d00652be0a357e55119bc4b252a77bb9a32834f3e39f58df504fc8ef48b4693d"
+    },
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/src-tauri/target/release/build/liuant-agentic-os-2bcd3021957e2c06/out/tauri-codegen-assets/78c5796ac916eec275d9ba87bcc9bc74c075d85432f7910d41b251b2bbff71f4.js",
+      "sha256": "860743acfe46f50c9104261e18bb6d5fa1940a8ffb1d59ecdf0ee0798adceba6"
+    },
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/src-tauri/target/release/build/liuant-agentic-os-2bcd3021957e2c06/out/tauri-codegen-assets/e774c6e0806fcf2c81a6dee3665f9fcd2d7cfe5f2209326556c7b99d749bef57.css",
+      "sha256": "91b2baf753c9cd248f7e063db3ded031a20d67821706aa7bfb9b7a3244a5b06f"
+    },
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/src-tauri/target/release/build/liuant-agentic-os-2bcd3021957e2c06/out/tauri-codegen-assets/8196e4e041ef68fb59f16eca9bc21d997f3ba443ce48445637fac95933ad2c4c.js",
+      "sha256": "018fd835fd9cedf473b5c694724f4b6171b2c2cfa7f26f524fe254c4e697c1a0"
+    },
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/src-tauri/target/release/build/liuant-agentic-os-2bcd3021957e2c06/out/tauri-codegen-assets/31d20077fe7f6a349e9956cd75c051349ccf16c51d4dbd18d4e4c76edcd319fa.css",
+      "sha256": "ee139c05081589b7563502bc4706b4a633620318bcd2e61048fe6630f4fda971"
+    },
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/src-tauri/target/release/build/liuant-agentic-os-2bcd3021957e2c06/out/tauri-codegen-assets/3d92fa1a92a759eb7ecb6ae03d962fffef835a5166186829c6b9d9fccdd8f5d1.js",
+      "sha256": "79ad55fce03e94468feb0ece196d0d6eb15cdde01ed9dc280eeded59e5eea887"
+    },
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/src-tauri/target/release/build/liuant-agentic-os-2bcd3021957e2c06/out/tauri-codegen-assets/2e4888722d21a19e9729a015c79151eb735aa6585cdb498b17d0d5a71d9365d4.css",
+      "sha256": "8ba501b0a9257563ff6ea6a9e445f64681ef21598c0de095136f645fdf2b12bc"
+    },
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/src-tauri/target/release/build/liuant-agentic-os-2bcd3021957e2c06/out/tauri-codegen-assets/1ebfa6867e43243199718722a11f6e343ac49595542b8fff9e79363882af4410.html",
+      "sha256": "d9cf8850ac2bc3d060ac2de158b1e220173067115a9dae98dc32402b1cd8d010"
+    },
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/src-tauri/target/release/bundle/dmg/Liuant Agentic OS_1.0.0_aarch64.dmg",
+      "sha256": "8486db982053265ba781b1cd1e8dbfed900a8f0e7bf334d7b6d20b411a99a871"
+    },
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/index.html",
+      "sha256": "13aeb14f4b9df1ac80642f27cc963fa3d8c462277bc675a1172849ebbd5ab8e8"
+    },
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/assets/index-CREeKsMu.js",
+      "sha256": "fa646f644c511772ae1a8135cd068280eb78a50e9bd5e1075b0b9c9a1f680fab"
+    },
+    {
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/assets/index-DU_Kadze.css",
+      "sha256": "f48fc0202d936ec45bf9cb054d7dfb19d7a0e0003f4785a15470461cbd79a2be"
+    }
+  ]
+}

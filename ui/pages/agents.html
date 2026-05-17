@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Agents</title><link rel="stylesheet" href="../styles.css" /></head>
+  <body data-page="agents">
+    <div class="shell"><aside class="sidebar"><div class="brand">Liuant Agentic OS</div><div class="mode">Built-in agents</div><nav class="nav"><a href="../index.html">System Dashboard</a><a class="active" href="./agents.html">Agents</a><a href="./agent-builder.html">Agent Builder</a><a href="./connectors.html">Connectors</a><a href="./social-studio.html">Social Studio</a><a href="./email-assistant.html">Email Assistant</a><a href="./image-studio.html">Image Studio</a><a href="./video-studio.html">Video Studio</a><a href="./automation-studio.html">Automation Studio</a><a href="./content-calendar.html">Content Calendar</a><a href="./approval-queue.html">Approval Queue</a><a href="./provider-setup.html">Provider Setup</a></nav></aside>
+      <main class="main"><div class="topline"><h1>Agents</h1><div class="safety">Agent runs create local drafts first. AI enhancement is optional.</div></div>
+        <section class="grid">
+          <article class="card stack"><h2>Run Agent</h2><input id="run-agent-slug" placeholder="Agent slug" value="marketing-agent" /><textarea id="run-agent-prompt" placeholder="Task">Create campaign for Python course</textarea><label class="checkline"><input id="run-agent-ai" type="checkbox" /> Use AI Enhancement</label><select id="run-agent-provider"><option value="">Default text provider</option><option value="openai">OpenAI</option><option value="openrouter">OpenRouter</option><option value="ollama">Ollama</option><option value="lmstudio">LM Studio</option><option value="custom_openai_compatible">Custom OpenAI-compatible</option></select><input id="run-agent-model" placeholder="Optional model" /><button id="run-agent">Run Agent</button></article>
+          <article class="card"><h2>Run History</h2><p>Completed agent runs are loaded from SQLite through the API. If AI enhancement fails, the local output remains saved.</p></article>
+        </section>
+      </main>
+    </div>
+    <script src="../app.js"></script>
+  </body>
+</html>

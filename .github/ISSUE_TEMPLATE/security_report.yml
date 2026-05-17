@@ -1,0 +1,25 @@
+name: Security Vulnerability (Private)
+description: Report a security vulnerability privately
+labels: [security]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not paste tokens, API keys, OAuth secrets, or private user data in this report.**
+        If you have a critical vulnerability, email admin@liuantum.com instead.
+  - type: textarea
+    id: description
+    attributes:
+      label: Vulnerability Description
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Potential Impact

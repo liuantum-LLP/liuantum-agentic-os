@@ -1,0 +1,45 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Workspace
+workspace/secrets/
+workspace/backups/
+workspace/managed_backend.json
+workspace/outputs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Desktop build
+apps/desktop/node_modules/
+apps/desktop/dist/
+apps/desktop/src-tauri/target/
+
+# Release build reports (machine-local paths)
+release/build-report.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Secrets and tokens - DO NOT COMMIT
+*.pem
+*.key
+credentials.json
+token.json
+oauth_token.json

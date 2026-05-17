@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Liuant Agentic OS icon">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#121a33"/>
+      <stop offset="100%" stop-color="#080c18"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4f8cf7"/>
+      <stop offset="50%" stop-color="#9b6ff6"/>
+      <stop offset="100%" stop-color="#2dd4e8"/>
+    </linearGradient>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="40%" stop-color="#b8cfff" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#4f8cf7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="conn" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4f8cf7" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#9b6ff6" stop-opacity="0.3"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="130" fill="none" stroke="url(#ring)" stroke-width="2.5" opacity="0.5"/>
+  <circle cx="256" cy="256" r="82" fill="none" stroke="url(#ring)" stroke-width="1.5" opacity="0.3"/>
+  <circle cx="256" cy="126" r="16" fill="#4f8cf7" opacity="0.95">
+    <animate attributeName="opacity" values="0.95;0.6;0.95" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="369" cy="348" r="16" fill="#9b6ff6" opacity="0.95">
+    <animate attributeName="opacity" values="0.6;0.95;0.6" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="143" cy="348" r="16" fill="#2dd4e8" opacity="0.95">
+    <animate attributeName="opacity" values="0.8;0.5;0.8" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <line x1="256" y1="126" x2="369" y2="348" stroke="url(#conn)" stroke-width="2"/>
+  <line x1="369" y1="348" x2="143" y2="348" stroke="url(#conn)" stroke-width="2"/>
+  <line x1="143" y1="348" x2="256" y2="126" stroke="url(#conn)" stroke-width="2"/>
+  <circle cx="256" cy="256" r="28" fill="url(#core)" opacity="0.9"/>
+  <circle cx="256" cy="256" r="10" fill="#ffffff" opacity="0.95"/>
+  <circle cx="213" cy="224" r="3.5" fill="#4f8cf7" opacity="0.6"/>
+  <circle cx="299" cy="224" r="3.5" fill="#9b6ff6" opacity="0.6"/>
+  <circle cx="256" cy="316" r="3.5" fill="#2dd4e8" opacity="0.6"/>
+  <circle cx="274" cy="248" r="2.5" fill="#e0eaff" opacity="0.4"/>
+  <circle cx="238" cy="264" r="2.5" fill="#e0eaff" opacity="0.4"/>
+  <circle cx="272" cy="280" r="2" fill="#e0eaff" opacity="0.3"/>
+</svg>

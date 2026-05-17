@@ -1,0 +1,41 @@
+# API Surface
+
+Representative MVP endpoints:
+
+- `GET /api/system/dashboard`
+- `GET /api/action-log`
+- `GET /api/agents`
+- `GET /api/models/list`
+- `POST /api/models/setup`
+- `POST /api/models/test`
+- `GET /api/models/status`
+- `GET /api/connectors`
+- `POST /api/connectors/create`
+- `POST /api/connectors/test`
+- `POST /api/connectors/enable`
+- `POST /api/connectors/disable`
+- `POST /api/connectors/disconnect`
+- `GET /api/email/connectors`
+- `POST /api/email/gmail/setup`
+- `POST /api/email/search`
+- `POST /api/email/summarize`
+- `POST /api/email/draft-reply`
+- `POST /api/email/send-approved`
+- `GET /api/generation/image/providers`
+- `POST /api/generation/image/generate`
+- `GET /api/generation/video/providers`
+- `POST /api/generation/video/storyboard`
+- `POST /api/generation/video/generate`
+- `POST /api/social/campaign/create`
+- `GET /api/social/campaigns`
+- `POST /api/social/drafts/create`
+- `GET /api/social/drafts`
+- `POST /api/social/drafts/{id}/approve`
+- `POST /api/social/drafts/{id}/publish`
+- `GET /api/automations/`
+- `POST /api/automations/create`
+- `POST /api/automations/{id}/run`
+- `POST /api/automations/{id}/enable`
+- `POST /api/automations/{id}/disable`
+- `DELETE /api/automations/{id}`
+

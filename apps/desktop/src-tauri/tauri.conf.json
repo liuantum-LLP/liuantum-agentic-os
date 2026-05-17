@@ -1,0 +1,44 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Liuant Agentic OS",
+  "version": "1.0.0",
+  "identifier": "com.liuant.agenticos",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://127.0.0.1:5173",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Liuant Agentic OS",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 980,
+        "minHeight": 680
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src http://127.0.0.1:8765 http://127.0.0.1:8000; img-src 'self' data: file:; style-src 'self' 'unsafe-inline';"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Productivity",
+    "shortDescription": "Local-first agentic OS desktop shell",
+    "longDescription": "Liuant Agentic OS desktop shell for the local API and safe draft-only workflows.",
+    "icon": [
+      "icons/icon.svg",
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.icns"
+    ],
+    "macOS": {
+      "hardenedRuntime": true
+    }
+  }
+}

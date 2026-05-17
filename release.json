@@ -1,0 +1,15 @@
+{
+  "app": "Liuant Agentic OS",
+  "version": "1.0.0",
+  "channel": "stable-open-source",
+  "minimum_python": "3.11",
+  "supported_platforms": ["macos", "linux", "windows"],
+  "release_notes": [
+    "v1.0.0 stable local desktop release",
+    "MIT License, open-source, community-build-first",
+    "Sidecar backend built and tested with PyInstaller",
+    "Three backend modes: external_backend, managed_backend, bundled_sidecar",
+    "Unsigned community DMG — signing is optional for maintainers only",
+    "466 tests passing, TypeScript clean, frontend builds"
+  ]
+}

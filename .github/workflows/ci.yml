@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Run backend tests
+        run: python -m pytest -q
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        run: |
+          cd apps/desktop
+          npm install
+
+      - name: TypeScript check
+        run: |
+          cd apps/desktop
+          npm run typecheck
+
+      - name: Frontend build
+        run: |
+          cd apps/desktop
+          npm run build
+
+# Notes:
+# - Native desktop builds (Tauri) are not run in CI because they require
+#   platform-specific system dependencies (GTK, WebKit, Rust/Cargo).
+# - macOS signing and notarization are not run in CI because they require
+#   Apple Developer credentials.
+# - Community builds are always unsigned. Signed builds are optional and
+#   performed only by maintainers with Apple Developer credentials.
+# - No secrets (API keys, tokens) are required for CI to pass.

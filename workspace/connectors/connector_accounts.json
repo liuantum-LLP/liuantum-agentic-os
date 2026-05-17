@@ -1,0 +1,14 @@
+[
+  {
+    "config": {},
+    "connector_type": "social",
+    "created_at": "2026-05-15T18:15:46.132059+00:00",
+    "disconnected_at": null,
+    "display_name": "whatsapp",
+    "enabled": true,
+    "id": "0f14b345-75fe-46e3-8582-3d08610960d9",
+    "provider": "whatsapp",
+    "scopes": [],
+    "status": "setup_required"
+  }
+]

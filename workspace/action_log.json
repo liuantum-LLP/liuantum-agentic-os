@@ -1,0 +1,41 @@
+[
+  {
+    "action_type": "social_draft_created",
+    "approval_id": null,
+    "connector_id": "whatsapp",
+    "created_at": "2026-05-15T18:15:46.132440+00:00",
+    "id": "4e8f3282-2ecb-441b-9fac-139661335d65",
+    "preview": {
+      "account_id": null,
+      "created_at": "2026-05-15T18:15:46.131978+00:00",
+      "id": "0149e041-71fb-4316-911e-864989706c52",
+      "media_paths": [],
+      "metadata": {},
+      "platform": "whatsapp",
+      "status": "draft",
+      "text": "Admissions open for the practical AI internship program."
+    },
+    "status": "draft"
+  },
+  {
+    "action_type": "email_draft_created",
+    "approval_id": null,
+    "connector_id": "gmail",
+    "created_at": "2026-05-15T18:15:52.243604+00:00",
+    "id": "8db77658-e0da-4576-bdf1-5c0c2cdb7583",
+    "preview": {
+      "attachments": [],
+      "bcc": [],
+      "body": "Draft reply for message sample-message-1 in a professional tone. Review before sending.",
+      "cc": [],
+      "connector_id": "gmail",
+      "created_at": "2026-05-15T18:15:52.243027+00:00",
+      "id": "98859a89-6425-4203-a765-e3b3225ac7ee",
+      "in_reply_to": "sample-message-1",
+      "status": "draft",
+      "subject": "Draft reply",
+      "to": []
+    },
+    "status": "draft"
+  }
+]

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /><title>Email Assistant - Liuant</title><link rel="stylesheet" href="../styles.css" /></head>
+  <body data-page="email-assistant">
+    <div class="shell"><aside class="sidebar"><div class="brand">Liuant Agentic OS</div><div class="mode">Gmail draft-only</div><nav class="nav"><a href="../index.html">System Dashboard</a><a href="./agents.html">Agents</a><a href="./agent-builder.html">Agent Builder</a><a href="./connectors.html">Connectors</a><a href="./social-studio.html">Social Studio</a><a class="active" href="./email-assistant.html">Email Assistant</a><a href="./image-studio.html">Image Studio</a><a href="./video-studio.html">Video Studio</a><a href="./automation-studio.html">Automation Studio</a><a href="./content-calendar.html">Content Calendar</a><a href="./approval-queue.html">Approval Queue</a><a href="./provider-setup.html">Provider Setup</a></nav></aside>
+      <main class="main"><div class="topline"><h1>Email Assistant</h1><div class="safety">Gmail drafts can be created. Sending is disabled.</div></div>
+        <section class="grid">
+          <article class="card stack"><h2>Gmail Connection</h2><div class="row"><button id="gmail-setup">Setup</button><button id="gmail-oauth">OAuth URL</button><button class="secondary" id="gmail-test">Test</button><button class="secondary" id="gmail-disconnect">Disconnect</button></div><pre id="gmail-oauth-output"></pre></article>
+          <article class="card stack"><h2>Inbox Search</h2><input id="email-query" placeholder="Gmail query" value="newer_than:7d" /><input id="email-max-results" type="number" value="10" min="1" /><div class="row"><button id="gmail-search">Search</button><button id="gmail-recent" class="secondary">Recent</button></div></article>
+          <article class="card stack"><h2>Message Actions</h2><input id="email-message-id" placeholder="Message id" value="latest" /><input id="email-tone" placeholder="Tone" value="professional" /><textarea id="email-draft-body" placeholder="Optional draft body"></textarea><div class="row"><button id="gmail-read">Read</button><button id="gmail-summarize" class="secondary">Summarize</button><button id="draft-email-reply">Create Gmail Draft</button></div><p>Creating a Gmail draft also creates a local approval. Sending remains disabled.</p></article>
+        </section>
+      </main>
+    </div><script src="../app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,20 @@
+[package]
+name = "liuant-agentic-os"
+version = "0.5.6"
+description = "Liuant Agentic OS desktop shell"
+authors = ["Liuant"]
+edition = "2021"
+license = "UNLICENSED"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
