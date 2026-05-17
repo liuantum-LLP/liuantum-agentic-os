@@ -10,3 +10,6 @@ sidecar = ["pyinstaller"]
 
 [project.scripts]
 liuant = "cli.liuant:main"
+
+[tool.setuptools.packages.find]
+include = ["cli*", "runtime*", "sidecar*", "installer*", "release*"]

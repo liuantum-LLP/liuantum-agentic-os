@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Liuant Agentic OS
 
 **Open-source, local-first AI agent operating system for building, managing, and automating AI agents from chat.**
@@ -181,3 +182,6 @@ See [SECURITY.md](SECURITY.md) for our security policy and how to report vulnera
 - No secrets in logs.
 - Report vulnerabilities privately to admin@liuantum.com.
 # liuant-agentic-os
+=======
+# liuantum-agentic-os
+>>>>>>> f7b9aa97bc030f30229b87d126de7d2f8a3a8aa6
