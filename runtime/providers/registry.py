@@ -41,10 +41,10 @@ def _capability(category: str, local: bool = False, **extra: bool) -> dict[str, 
 
 PROVIDER_SPECS = [
     ProviderSpec("openai", "OpenAI", "text", "openai", "https://api.openai.com/v1", "OPENAI_API_KEY", "gpt-4.1-mini", "gpt-4.1-mini", True, True, "missing_key", _capability("text", embedding=True, speech_to_text=True, text_to_speech=True), ["gpt-4.1-mini", "gpt-4o-mini"]),
-    ProviderSpec("anthropic", "Anthropic", "text", "anthropic", "", "ANTHROPIC_API_KEY", "claude-3-5-sonnet-latest", "", False, False, "placeholder", _capability("text"), ["claude-3-5-sonnet-latest"], "Config-ready; real SDK call is not implemented in v0.2.2."),
-    ProviderSpec("gemini", "Google Gemini", "text", "gemini", "", "GEMINI_API_KEY", "gemini-1.5-flash", "", False, False, "placeholder", _capability("text"), ["gemini-1.5-flash"], "Config-ready placeholder."),
-    ProviderSpec("openrouter", "OpenRouter", "text", "openrouter", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "openai/gpt-4.1-mini", "openai/gpt-4.1-mini", False, False, "missing_key", _capability("text"), ["openai/gpt-4.1-mini", "anthropic/claude-3.5-sonnet"]),
-    ProviderSpec("groq", "Groq", "text", "groq", "", "GROQ_API_KEY", "llama-3.1-8b-instant", "", False, False, "placeholder", _capability("text"), ["llama-3.1-8b-instant"], "Config-ready placeholder."),
+    ProviderSpec("anthropic", "Anthropic", "text", "anthropic", "https://api.anthropic.com", "ANTHROPIC_API_KEY", "claude-3-5-sonnet-latest", "claude-3-5-sonnet-latest", False, False, "placeholder", _capability("text"), ["claude-3-5-sonnet-latest", "claude-3-haiku-latest", "claude-3-opus-latest"]),
+    ProviderSpec("gemini", "Google Gemini", "text", "gemini", "https://generativelanguage.googleapis.com", "GEMINI_API_KEY", "gemini-2.0-flash", "gemini-2.0-flash", False, False, "placeholder", _capability("text"), ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]),
+    ProviderSpec("openrouter", "OpenRouter", "text", "openrouter", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "openai/gpt-4.1-mini", "openai/gpt-4.1-mini", False, False, "missing_key", _capability("text"), ["openai/gpt-4.1-mini", "anthropic/claude-3.5-sonnet", "google/gemini-2.0-flash"]),
+    ProviderSpec("groq", "Groq", "text", "groq", "https://api.groq.com/openai", "GROQ_API_KEY", "llama-3.1-8b-instant", "llama-3.1-8b-instant", False, False, "placeholder", _capability("text"), ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "mixtral-8x7b-32768"]),
     ProviderSpec("mistral", "Mistral", "text", "mistral", "", "MISTRAL_API_KEY", "mistral-small-latest", "", False, False, "placeholder", _capability("text"), ["mistral-small-latest"], "Config-ready placeholder."),
     ProviderSpec("together", "Together AI", "text", "together", "", "TOGETHER_API_KEY", "meta-llama/Llama-3.3-70B-Instruct-Turbo", "", False, False, "placeholder", _capability("text"), ["meta-llama/Llama-3.3-70B-Instruct-Turbo"], "Config-ready placeholder."),
     ProviderSpec("fireworks", "Fireworks AI", "text", "fireworks", "", "FIREWORKS_API_KEY", "accounts/fireworks/models/llama-v3p1-8b-instruct", "", False, False, "placeholder", _capability("text"), ["accounts/fireworks/models/llama-v3p1-8b-instruct"], "Config-ready placeholder."),
@@ -449,6 +449,9 @@ class ModelHub:
         env_var = row.get("api_key_env") or row.get("env_var") or ""
         if env_var and not _read_secret(env_var):
             return "missing_key"
+        provider_type = row.get("provider_type", "")
+        if provider_type in {"anthropic", "gemini", "groq"}:
+            return "configured" if env_var and _read_secret(env_var) else "placeholder"
         if row.get("status") == "placeholder":
             return "placeholder"
         return "configured"
@@ -482,7 +485,7 @@ class ModelHub:
         if provider.get("category") != "text":
             return {**base, "status": "needs_provider_setup", "error": "Selected provider is not a text provider."}
         if provider_type in {"anthropic", "gemini", "groq", "mistral", "together", "fireworks"}:
-            return {**base, "status": "placeholder", "error": "Provider is config-ready; real text generation is not implemented yet."}
+            return self._generate_provider_sdk(provider, prompt, system_prompt, resolved_model, temperature, max_tokens)
         if provider_type == "ollama":
             return self._generate_ollama(provider, prompt, system_prompt, resolved_model, temperature, max_tokens)
         if provider_type == "lmstudio":
@@ -559,6 +562,162 @@ class ModelHub:
             return {**base, "status": "completed", "text": data.get("response", ""), "usage": {"eval_count": data.get("eval_count"), "prompt_eval_count": data.get("prompt_eval_count")}}
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             return {**base, "status": "local_unreachable", "error": _redact_error(exc)}
+        except Exception as exc:
+            return {**base, "status": "provider_error", "error": _redact_error(exc)}
+
+    def _generate_provider_sdk(
+        self,
+        provider: dict[str, Any],
+        prompt: str,
+        system_prompt: str | None,
+        model: str,
+        temperature: float,
+        max_tokens: int | None,
+    ) -> dict[str, Any]:
+        """Generate text using Anthropic, Gemini, Groq, Mistral, Together, or Fireworks SDKs."""
+        provider_id = provider["id"]
+        provider_type = provider.get("provider_type") or provider_id
+        resolved_model = model or provider.get("default_model") or ""
+        base = _base_text_response(provider_id, resolved_model)
+        env_var = provider.get("api_key_env") or provider.get("env_var") or ""
+        key = _read_secret(env_var)
+
+        if not key:
+            return {**base, "status": "needs_provider_setup", "error": f"Missing {env_var or 'API key'}."}
+        if not resolved_model:
+            return {**base, "status": "needs_provider_setup", "error": f"Missing text model for {provider_id}."}
+
+        if provider_type == "anthropic":
+            return self._generate_anthropic(provider, prompt, system_prompt, resolved_model, temperature, max_tokens, key, base)
+        if provider_type == "gemini":
+            return self._generate_gemini(provider, prompt, system_prompt, resolved_model, temperature, max_tokens, key, base)
+        if provider_type == "groq":
+            return self._generate_groq(provider, prompt, system_prompt, resolved_model, temperature, max_tokens, key, base)
+        if provider_type in {"mistral", "together", "fireworks"}:
+            return self._generate_openai_compatible(provider, prompt, system_prompt, resolved_model, temperature, max_tokens, requires_key=True)
+
+        return {**base, "status": "placeholder", "error": f"Provider {provider_type} is config-ready but not implemented."}
+
+    def _generate_anthropic(
+        self,
+        provider: dict[str, Any],
+        prompt: str,
+        system_prompt: str | None,
+        model: str,
+        temperature: float,
+        max_tokens: int | None,
+        key: str,
+        base: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Anthropic Messages API via urllib."""
+        provider_id = provider["id"]
+        base_url = (provider.get("base_url") or "https://api.anthropic.com").rstrip("/")
+        messages = [{"role": "user", "content": prompt}]
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens or 4096,
+            "temperature": temperature,
+        }
+        if system_prompt:
+            payload["system"] = system_prompt
+        headers = {
+            "content-type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": key,
+        }
+        try:
+            data = _post_json(f"{base_url}/v1/messages", payload, headers)
+            text = ""
+            if "content" in data:
+                for block in data["content"]:
+                    if block.get("type") == "text":
+                        text += block.get("text", "")
+            usage = data.get("usage") or {}
+            return {**base, "status": "completed", "text": text, "usage": usage}
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            return {**base, "status": "provider_error", "error": _redact_error(exc)}
+        except Exception as exc:
+            return {**base, "status": "provider_error", "error": _redact_error(exc)}
+
+    def _generate_gemini(
+        self,
+        provider: dict[str, Any],
+        prompt: str,
+        system_prompt: str | None,
+        model: str,
+        temperature: float,
+        max_tokens: int | None,
+        key: str,
+        base: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Google Gemini API via urllib."""
+        provider_id = provider["id"]
+        base_url = (provider.get("base_url") or "https://generativelanguage.googleapis.com").rstrip("/")
+        contents = [{"role": "user", "parts": [{"text": prompt}]}]
+        payload: dict[str, Any] = {
+            "contents": contents,
+            "generationConfig": {
+                "temperature": temperature,
+                "maxOutputTokens": max_tokens or 4096,
+            },
+        }
+        if system_prompt:
+            payload["system_instruction"] = {"parts": [{"text": system_prompt}]}
+        try:
+            url = f"{base_url}/v1beta/models/{model}:generateContent?key={key}"
+            data = _post_json(url, payload, {"content-type": "application/json"})
+            text = ""
+            if "candidates" in data and data["candidates"]:
+                candidate = data["candidates"][0]
+                content = candidate.get("content", {})
+                for part in content.get("parts", []):
+                    text += part.get("text", "")
+            usage = {}
+            if "usageMetadata" in data:
+                usage = data["usageMetadata"]
+            return {**base, "status": "completed", "text": text, "usage": usage}
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            return {**base, "status": "provider_error", "error": _redact_error(exc)}
+        except Exception as exc:
+            return {**base, "status": "provider_error", "error": _redact_error(exc)}
+
+    def _generate_groq(
+        self,
+        provider: dict[str, Any],
+        prompt: str,
+        system_prompt: str | None,
+        model: str,
+        temperature: float,
+        max_tokens: int | None,
+        key: str,
+        base: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Groq API via urllib (OpenAI-compatible)."""
+        provider_id = provider["id"]
+        base_url = (provider.get("base_url") or "https://api.groq.com/openai").rstrip("/")
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        payload: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+        }
+        if max_tokens:
+            payload["max_tokens"] = max_tokens
+        headers = {
+            "content-type": "application/json",
+            "authorization": f"Bearer {key}",
+        }
+        try:
+            data = _post_json(f"{base_url}/v1/chat/completions", payload, headers)
+            text = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
+            usage = data.get("usage") or {}
+            return {**base, "status": "completed", "text": text, "usage": usage}
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            return {**base, "status": "provider_error", "error": _redact_error(exc)}
         except Exception as exc:
             return {**base, "status": "provider_error", "error": _redact_error(exc)}
 

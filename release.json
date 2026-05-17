@@ -1,20 +1,22 @@
 {
   "app": "Liuant Agentic OS",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "channel": "stable-open-source",
   "minimum_python": "3.11",
   "supported_platforms": ["macos", "linux", "windows"],
   "release_notes": [
-    "v1.1.0 Multi-model role configuration and discussion mode",
-    "Model Roles: Default, Thinking, Coding, Planning, Fast, Fallback",
-    "Discussion Mode: multi-model collaboration with configurable rounds",
-    "Settings UI: new Model Roles section with role status and discussion controls",
-    "Chat UI: Discussion Mode toggle, rounds selector, transcript viewer",
-    "CLI: models roles, role-set, role-test, role-reset, discussion-status",
-    "API: /api/models/roles, /api/chat/discussion endpoints",
-    "Agent integration: preferred_model_role, allow_discussion_mode",
-    "Automation integration: model_role, discussion_mode_enabled",
-    "Safety: secret redaction, cost warnings, max rounds cap",
-    "513 tests pass, frontend builds clean"
+    "v1.2.0 Real provider SDK execution paths",
+    "Anthropic Messages API — full text generation with system prompts",
+    "Google Gemini API — generateContent with system instructions",
+    "Groq API — OpenAI-compatible chat completions",
+    "OpenRouter — hardened with proper API key handling",
+    "Ollama — real /api/generate with system prompt support",
+    "OpenAI-compatible — base_url + Bearer token flow",
+    "Role runtime execution: resolve role → provider → fallback chain",
+    "Discussion Mode uses actual configured providers with partial fallback",
+    "CLI: chat --model-role, chat --discussion, text generate with all providers",
+    "Chat UI shows role badge, provider/model, fallback warnings",
+    "Provider errors are redacted — no secrets in logs or responses",
+    "531 tests pass, frontend builds clean"
   ]
 }

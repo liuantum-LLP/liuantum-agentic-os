@@ -76,6 +76,7 @@ EXAMPLES = {
     "status": ["liuant status"],
     "dashboard": ["liuant dashboard"],
     "agents": ['liuant agents list', 'liuant agents run content-creator-agent "Create 5 LinkedIn posts for Liuant Agentic OS"'],
+    "chat": ['liuant chat "What is Liuant?"', 'liuant chat --model-role coding "Fix this error"', 'liuant chat --discussion "Plan Liuant launch"'],
     "models": ["liuant models status", "liuant models test openai"],
     "providers": ["liuant providers categories", "liuant providers list --category image", "liuant providers set-default video hyperframes_skill"],
     "text": ['liuant text generate "Write a 5-line marketing caption for Liuant Agentic OS"', "liuant text providers", "liuant text test openai"],
@@ -136,6 +137,7 @@ def build_parser() -> argparse.ArgumentParser:
         "status",
         "dashboard",
         "agents",
+        "chat",
         "models",
         "providers",
         "text",
@@ -384,6 +386,40 @@ def dispatch(args: argparse.Namespace) -> Any:
         if command == "export" and rest:
             return {"output_path": export_agent_run_markdown(rest[0])}
         return {"commands": ["list", "show <slug>", "create <name>", "update <slug> <instructions>", "disable <slug>", "enable <slug>", "run <agent_slug> <prompt>", "runs", "export <run_id>"]}
+    if args.area == "chat":
+        from runtime.chat.intent_router import route_chat_message
+        from runtime.model_router import route_task_to_role
+        message, options = parse_cli_options(rest)
+        if not message:
+            return {"commands": ['chat "message"', 'chat --model-role coding "Fix this error"', 'chat --discussion "Plan Liuant launch"']}
+        if options.get("discussion") == "true":
+            from runtime.chat.discussion import run_discussion
+            roles_str = options.get("roles", "")
+            roles = [r.strip() for r in roles_str.split(",")] if roles_str else None
+            rounds = parse_int(options.get("rounds"), 2)
+            return run_discussion(user_message=message, roles=roles, rounds=rounds)
+        if options.get("model_role"):
+            from runtime.model_roles import ModelRoleManager
+            from runtime.model_router import get_model_for_role
+            role = options["model_role"]
+            rm = ModelRoleManager()
+            hub = ModelHub()
+            model_cfg = get_model_for_role(role, rm)
+            if not model_cfg["configured"]:
+                return {"status": "error", "message": f"Role '{role}' not configured. Set it with: ./liuant models role-set {role} --provider <provider> --model <model>"}
+            try:
+                response = hub.generate_text(
+                    prompt=message,
+                    provider_name=model_cfg["provider"],
+                    model=model_cfg["model"],
+                )
+                response["role_used"] = role
+                response["provider"] = model_cfg["provider"]
+                response["model"] = model_cfg["model"]
+                return response
+            except Exception as exc:
+                return {"status": "error", "message": str(exc)[:200], "role": role, "provider": model_cfg["provider"]}
+        return route_chat_message(message)
     if args.area == "models" and command == "roles":
         from runtime.model_roles import ModelRoleManager
         rm = ModelRoleManager()

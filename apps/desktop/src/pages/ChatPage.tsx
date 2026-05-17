@@ -14,6 +14,11 @@ type ChatMessage = {
   discussionRoles?: string[];
   discussionWarnings?: string[];
   discussionCostNote?: string;
+  providerUsed?: string;
+  modelUsed?: string;
+  roleUsed?: string;
+  fallbackWarning?: string;
+  costWarning?: string;
 };
 
 type ChatState = {
@@ -107,6 +112,10 @@ export function ChatPage() {
           actions: result.actions,
           nextQuestions: result.next_questions,
           requiredFields: result.required_fields,
+          providerUsed: (result.data as any)?.provider,
+          modelUsed: (result.data as any)?.model,
+          roleUsed: (result.data as any)?.role_used,
+          fallbackWarning: (result.data as any)?.fallback_used ? "Fallback model was used" : undefined,
         };
         addMessage(msg);
         const fields = result.required_fields;
@@ -194,6 +203,15 @@ export function ChatPage() {
           <div key={i} className={`chat-message ${msg.role}`}>
             <div className="chat-bubble">
               <div className="chat-content">{renderContent(msg.content)}</div>
+              {(msg.providerUsed || msg.modelUsed || msg.roleUsed) && (
+                <div className="chat-model-meta">
+                  {msg.roleUsed && <span className="chat-role-badge">{msg.roleUsed}</span>}
+                  {msg.providerUsed && msg.modelUsed && (
+                    <span className="chat-provider-badge">{msg.providerUsed}/{msg.modelUsed}</span>
+                  )}
+                  {msg.fallbackWarning && <span className="chat-fallback-warning">⚠️ {msg.fallbackWarning}</span>}
+                </div>
+              )}
               {msg.discussionTranscript && msg.discussionTranscript.length > 0 && (
                 <details className="discussion-summary">
                   <summary>Model discussion summary ({msg.discussionTranscript.length} contributions)</summary>

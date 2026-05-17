@@ -22,7 +22,7 @@ def as_bool(value: str) -> bool:
 class SettingsManager:
     defaults = {
         "app_name": "Liuant Agentic OS",
-        "app_version": "1.1.0",
+        "app_version": "1.2.0",
         "app_environment": "local",
         "default_workspace": "default",
         "default_agent": "content-creator-agent",

@@ -59,7 +59,7 @@ def route_task_to_role(message: str, context: dict[str, Any] | None = None) -> s
 
 
 def get_model_for_role(role: str, role_manager: Any | None = None) -> dict[str, Any]:
-    """Return the provider and model for a given role."""
+    """Return the provider and model for a given role, with fallback chain."""
     if role_manager is None:
         from runtime.model_roles import ModelRoleManager
         role_manager = ModelRoleManager()
@@ -101,3 +101,49 @@ def get_model_for_role(role: str, role_manager: Any | None = None) -> dict[str, 
         "configured": False,
         "message": f"No model configured for role '{role}' and no fallback/default available.",
     }
+
+
+def resolve_role_for_chat(role: str | None, role_manager: Any | None = None, model_hub: Any | None = None) -> dict[str, Any]:
+    """Resolve a role for chat execution, including provider availability check."""
+    if role_manager is None:
+        from runtime.model_roles import ModelRoleManager
+        role_manager = ModelRoleManager()
+    if model_hub is None:
+        from runtime.providers import ModelHub
+        model_hub = ModelHub()
+
+    model_cfg = get_model_for_role(role or "default", role_manager)
+    if not model_cfg["configured"]:
+        return {
+            **model_cfg,
+            "status": "not_configured",
+            "message": f"No model configured for role '{role or 'default'}'. Configure in Settings > Model Roles.",
+        }
+
+    provider_name = model_cfg["provider"]
+    try:
+        provider_info = model_hub.get_provider(provider_name)
+        if not provider_info.get("is_enabled"):
+            return {
+                **model_cfg,
+                "status": "provider_disabled",
+                "message": f"Provider '{provider_name}' is disabled. Enable it in Settings.",
+            }
+        provider_status = provider_info.get("status", "")
+        if provider_status in {"missing_key", "placeholder"}:
+            return {
+                **model_cfg,
+                "status": "provider_not_ready",
+                "message": f"Provider '{provider_name}' is not ready ({provider_status}). Configure API key in Settings.",
+            }
+        return {
+            **model_cfg,
+            "status": "ready",
+            "provider_info": model_hub._sanitize(provider_info) if hasattr(model_hub, "_sanitize") else provider_info,
+        }
+    except ValueError:
+        return {
+            **model_cfg,
+            "status": "provider_not_found",
+            "message": f"Provider '{provider_name}' not found.",
+        }

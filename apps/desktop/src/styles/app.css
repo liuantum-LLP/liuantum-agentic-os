@@ -1150,3 +1150,34 @@ button, input { font: inherit; }
   font-size: 11px;
   color: var(--success);
 }
+
+.chat-model-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  flex-wrap: wrap;
+}
+
+.chat-role-badge {
+  background: var(--accent);
+  color: var(--bg-primary);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.chat-provider-badge {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--mono-font, monospace);
+}
+
+.chat-fallback-warning {
+  font-size: 11px;
+  color: var(--warn);
+}

@@ -19,7 +19,7 @@ from typing import Any
 from uuid import uuid4
 
 from runtime.model_roles import ModelRoleManager
-from runtime.model_router import get_model_for_role, route_task_to_role
+from runtime.model_router import get_model_for_role, route_task_to_role, resolve_role_for_chat
 from runtime.providers import ModelHub
 
 SENSITIVE_PATTERNS = re.compile(
@@ -116,6 +116,23 @@ def run_discussion(
             if not model_cfg["configured"]:
                 warnings.append(f"Role '{role}' not configured, skipping.")
                 continue
+
+            resolution = resolve_role_for_chat(role, role_manager, model_hub)
+            if resolution["status"] not in ("ready",):
+                warnings.append(f"Role '{role}' provider not ready: {resolution.get('message', '')}")
+                fallback_cfg = get_model_for_role("fallback", role_manager)
+                if fallback_cfg["configured"]:
+                    model_cfg = fallback_cfg
+                else:
+                    transcript.append({
+                        "role": role,
+                        "round": round_num,
+                        "provider": model_cfg["provider"],
+                        "model": model_cfg["model"],
+                        "content": "",
+                        "status": f"skipped: {resolution.get('status')}",
+                    })
+                    continue
 
             prompt = _build_role_prompt(
                 role=role,
