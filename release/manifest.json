@@ -3,8 +3,8 @@
   "version": "1.0.2",
   "channel": "stable-open-source",
   "platform": "macOS-26.5-arm64-arm-64bit-Mach-O",
-  "build_date": "2026-05-17T09:38:10.368213+00:00",
-  "git_commit": "2195f9c",
+  "build_date": "2026-05-17T11:02:23.111058+00:00",
+  "git_commit": "a4501dc",
   "artifacts": [
     {
       "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/src-tauri/target/release/bundle/dmg/Liuant Agentic OS_1.0.0_aarch64.dmg",
