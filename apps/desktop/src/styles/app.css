@@ -1025,3 +1025,128 @@ button, input { font: inherit; }
   .settings-layout { grid-template-columns: 1fr; }
   .settings-nav { flex-direction: row; overflow-x: auto; }
 }
+
+/* Discussion Mode */
+.chat-controls {
+  padding: 8px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.chat-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.chat-toggle input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+.chat-discussion-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-discussion-rounds {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.chat-discussion-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.discussion-summary {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.discussion-summary summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.discussion-roles {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+.discussion-role-chip {
+  background: var(--accent);
+  color: var(--bg-primary);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.discussion-entry {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.discussion-role {
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 100px;
+}
+
+.discussion-content {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.discussion-warnings {
+  margin-top: 8px;
+}
+
+.discussion-warning {
+  font-size: 12px;
+  color: var(--warn);
+  margin: 4px 0;
+}
+
+.discussion-cost-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  font-style: italic;
+}
+
+.setting-optional {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.cost-badge {
+  font-size: 11px;
+  color: var(--warn);
+}
+
+.local-badge {
+  font-size: 11px;
+  color: var(--success);
+}

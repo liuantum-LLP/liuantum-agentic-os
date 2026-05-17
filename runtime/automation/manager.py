@@ -38,6 +38,10 @@ class AutomationDefinition:
     failure_count: int = 0
     enabled: bool = True
     requires_approval: bool = True
+    model_role: str = "default"
+    discussion_mode_enabled: bool = False
+    discussion_roles_json: list[str] = field(default_factory=list)
+    discussion_rounds: int = 2
     last_run_at: str | None = None
     id: str = field(default_factory=lambda: str(uuid4()))
     created_at: str = field(default_factory=utc_now)
@@ -81,6 +85,10 @@ class AutomationManager:
             external_actions_allowed=False,
             enabled=data.get("enabled", True),
             requires_approval=data.get("requires_approval", True),
+            model_role=data.get("model_role", "default"),
+            discussion_mode_enabled=bool(data.get("discussion_mode_enabled", False)),
+            discussion_roles_json=data.get("discussion_roles", []),
+            discussion_rounds=int(data.get("discussion_rounds", 2)),
         )
         row = automation.to_dict()
         row["next_run_at"] = calculate_next_run(row)
@@ -182,6 +190,10 @@ class AutomationManager:
         row.setdefault("next_run_at", calculate_next_run(row))
         row.setdefault("run_count", 0)
         row.setdefault("failure_count", 0)
+        row.setdefault("model_role", "default")
+        row.setdefault("discussion_mode_enabled", False)
+        row.setdefault("discussion_roles_json", [])
+        row.setdefault("discussion_rounds", 2)
         row["schedule_text"] = row.get("schedule_text") or _schedule_text(row.get("trigger_type", "manual"), row.get("schedule") or {})
         return row
 

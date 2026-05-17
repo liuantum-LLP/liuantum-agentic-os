@@ -199,6 +199,75 @@ def chat_intents() -> dict[str, Any]:
     }
 
 
+@app.post("/api/chat/discussion")
+def chat_discussion(payload: dict[str, Any]) -> dict[str, Any]:
+    message = payload.get("message", "")
+    if not message:
+        return {"status": "error", "message": "No message provided."}
+    roles = payload.get("roles")
+    rounds = int(payload.get("rounds", 2))
+    final_role = payload.get("final_role", "thinking")
+    from runtime.chat.discussion import run_discussion
+    return run_discussion(user_message=message, roles=roles, rounds=rounds, final_role=final_role)
+
+
+@app.get("/api/models/roles")
+def models_roles() -> dict[str, Any]:
+    from runtime.model_roles import ModelRoleManager
+    return ModelRoleManager().get_all_roles()
+
+
+@app.post("/api/models/roles/set")
+def models_roles_set(payload: dict[str, Any]) -> dict[str, Any]:
+    from runtime.model_roles import ModelRoleManager
+    role = payload.get("role", "")
+    provider = payload.get("provider", "")
+    model = payload.get("model", "")
+    if not role or not provider or not model:
+        return {"status": "error", "message": "role, provider, and model are required."}
+    try:
+        return ModelRoleManager().set_role(role, provider, model)
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/api/models/roles/test")
+def models_roles_test(payload: dict[str, Any]) -> dict[str, Any]:
+    from runtime.model_roles import ModelRoleManager
+    role = payload.get("role", "")
+    if not role:
+        return {"status": "error", "message": "role is required."}
+    return ModelRoleManager().test_role(role)
+
+
+@app.post("/api/models/roles/reset")
+def models_roles_reset(payload: dict[str, Any]) -> dict[str, Any]:
+    from runtime.model_roles import ModelRoleManager
+    role = payload.get("role")
+    if role:
+        return ModelRoleManager().reset_role(role)
+    return ModelRoleManager().reset_all_roles()
+
+
+@app.get("/api/models/discussion")
+def models_discussion_status() -> dict[str, Any]:
+    from runtime.model_roles import ModelRoleManager
+    return ModelRoleManager().get_discussion_settings()
+
+
+@app.post("/api/models/discussion/set")
+def models_discussion_set(payload: dict[str, Any]) -> dict[str, Any]:
+    from runtime.model_roles import ModelRoleManager
+    key = payload.get("key", "")
+    value = payload.get("value", "")
+    if not key:
+        return {"status": "error", "message": "key is required."}
+    try:
+        return ModelRoleManager().set_discussion_setting(key, value)
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+
+
 @app.get("/api/system/dashboard")
 def system_dashboard() -> dict[str, Any]:
     return build_dashboard()

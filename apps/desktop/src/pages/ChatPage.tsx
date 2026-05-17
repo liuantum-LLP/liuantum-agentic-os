@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { apiPost } from "../api/client";
+import { apiPost, apiGet } from "../api/client";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -10,6 +10,10 @@ type ChatMessage = {
   actions?: string[];
   nextQuestions?: string[];
   requiredFields?: { field: string; question: string; secret?: boolean; options?: string[] }[];
+  discussionTranscript?: { role: string; round: number; content: string; status: string }[];
+  discussionRoles?: string[];
+  discussionWarnings?: string[];
+  discussionCostNote?: string;
 };
 
 type ChatState = {
@@ -32,12 +36,27 @@ export function ChatPage() {
   });
   const [input, setInput] = useState("");
   const [fieldInput, setFieldInput] = useState("");
+  const [discussionMode, setDiscussionMode] = useState(false);
+  const [discussionRounds, setDiscussionRounds] = useState(2);
+  const [discussionRoles, setDiscussionRoles] = useState<string[]>(["auto"]);
+  const [discussionSettings, setDiscussionSettings] = useState<Record<string, unknown> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [state.messages]);
+
+  useEffect(() => {
+    apiGet<Record<string, unknown>>("/api/models/discussion")
+      .then((d) => {
+        setDiscussionSettings(d);
+        if (d.discussion_mode_enabled === true) {
+          setDiscussionMode(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   function addMessage(msg: ChatMessage) {
     setState((prev) => ({ ...prev, messages: [...prev.messages, msg] }));
@@ -48,38 +67,60 @@ export function ChatPage() {
     addMessage({ role: "user", content: message });
     setState((prev) => ({ ...prev, loading: true }));
     try {
-      const result = await apiPost<{
-        intent: string;
-        status: string;
-        message: string;
-        data?: Record<string, unknown>;
-        required_fields?: { field: string; question: string; secret?: boolean; options?: string[] }[];
-        preview?: Record<string, unknown>;
-        actions?: string[];
-        next_questions?: string[];
-      }>("/api/chat/message", { message: message.trim() });
-      const msg: ChatMessage = {
-        role: "assistant",
-        content: result.message || "I processed your request.",
-        intent: result.intent,
-        data: result.data,
-        preview: result.preview,
-        actions: result.actions,
-        nextQuestions: result.next_questions,
-        requiredFields: result.required_fields,
-      };
-      addMessage(msg);
-      const fields = result.required_fields;
-      if (fields && fields.length > 0) {
-        setState((prev) => ({
-          ...prev,
-          waitingForField: {
-            field: fields[0].field,
-            question: fields[0].question,
-            originalIntent: result.intent,
-            collected: {},
-          },
-        }));
+      if (discussionMode) {
+        const result = await apiPost<{
+          status: string;
+          final_answer: string;
+          transcript?: { role: string; round: number; content: string; status: string }[];
+          roles_used?: string[];
+          warnings?: string[];
+          cost_note?: string;
+          fallback_used?: boolean;
+        }>("/api/chat/discussion", { message: message.trim(), roles: discussionRoles, rounds: discussionRounds });
+        const msg: ChatMessage = {
+          role: "assistant",
+          content: result.final_answer || "Discussion completed.",
+          intent: "discussion",
+          discussionTranscript: result.transcript,
+          discussionRoles: result.roles_used,
+          discussionWarnings: result.warnings,
+          discussionCostNote: result.cost_note,
+        };
+        addMessage(msg);
+      } else {
+        const result = await apiPost<{
+          intent: string;
+          status: string;
+          message: string;
+          data?: Record<string, unknown>;
+          required_fields?: { field: string; question: string; secret?: boolean; options?: string[] }[];
+          preview?: Record<string, unknown>;
+          actions?: string[];
+          next_questions?: string[];
+        }>("/api/chat/message", { message: message.trim() });
+        const msg: ChatMessage = {
+          role: "assistant",
+          content: result.message || "I processed your request.",
+          intent: result.intent,
+          data: result.data,
+          preview: result.preview,
+          actions: result.actions,
+          nextQuestions: result.next_questions,
+          requiredFields: result.required_fields,
+        };
+        addMessage(msg);
+        const fields = result.required_fields;
+        if (fields && fields.length > 0) {
+          setState((prev) => ({
+            ...prev,
+            waitingForField: {
+              field: fields[0].field,
+              question: fields[0].question,
+              originalIntent: result.intent,
+              collected: {},
+            },
+          }));
+        }
       }
     } catch {
       addMessage({ role: "assistant", content: "Sorry, I couldn't reach the backend. Make sure the server is running.", intent: "error" });
@@ -153,6 +194,34 @@ export function ChatPage() {
           <div key={i} className={`chat-message ${msg.role}`}>
             <div className="chat-bubble">
               <div className="chat-content">{renderContent(msg.content)}</div>
+              {msg.discussionTranscript && msg.discussionTranscript.length > 0 && (
+                <details className="discussion-summary">
+                  <summary>Model discussion summary ({msg.discussionTranscript.length} contributions)</summary>
+                  {msg.discussionRoles && (
+                    <div className="discussion-roles">
+                      {msg.discussionRoles.map((r, j) => (
+                        <span key={j} className="discussion-role-chip">{r}</span>
+                      ))}
+                    </div>
+                  )}
+                  {msg.discussionTranscript.map((t, j) => (
+                    <div key={j} className="discussion-entry">
+                      <span className={`discussion-role ${t.status === "completed" ? "status-good" : "status-warn"}`}>
+                        {t.role} (round {t.round})
+                      </span>
+                      <span className="discussion-content">{t.content.slice(0, 200)}...</span>
+                    </div>
+                  ))}
+                  {msg.discussionWarnings && msg.discussionWarnings.length > 0 && (
+                    <div className="discussion-warnings">
+                      {msg.discussionWarnings.map((w, j) => (
+                        <p key={j} className="discussion-warning">⚠️ {w}</p>
+                      ))}
+                    </div>
+                  )}
+                  {msg.discussionCostNote && <p className="discussion-cost-note">{msg.discussionCostNote}</p>}
+                </details>
+              )}
               {msg.requiredFields && msg.requiredFields.length > 0 && msg.requiredFields[0].options && (
                 <div className="chat-actions">
                   {msg.requiredFields[0].options.map((opt) => (
@@ -177,11 +246,39 @@ export function ChatPage() {
         {state.loading && (
           <div className="chat-message assistant">
             <div className="chat-bubble">
-              <span className="chat-typing">thinking...</span>
+              <span className="chat-typing">{discussionMode ? "Models discussing..." : "thinking..."}</span>
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
+      </div>
+
+      <div className="chat-controls">
+        <label className="chat-toggle">
+          <input
+            type="checkbox"
+            checked={discussionMode}
+            onChange={(e) => setDiscussionMode(e.target.checked)}
+          />
+          Discussion Mode
+        </label>
+        {discussionMode && (
+          <div className="chat-discussion-controls">
+            <select
+              className="chat-discussion-rounds"
+              value={discussionRounds}
+              onChange={(e) => setDiscussionRounds(parseInt(e.target.value))}
+            >
+              <option value={1}>1 round</option>
+              <option value={2}>2 rounds</option>
+              <option value={3}>3 rounds</option>
+              <option value={4}>4 rounds</option>
+            </select>
+            <span className="chat-discussion-note">
+              Uses multiple model calls per round. Cloud models incur costs.
+            </span>
+          </div>
+        )}
       </div>
 
       <form className="chat-input-area" onSubmit={handleFormSubmit}>
@@ -205,7 +302,7 @@ export function ChatPage() {
               className="chat-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask me anything..."
+              placeholder={discussionMode ? "Ask anything — multiple models will collaborate..." : "Ask me anything..."}
               autoFocus
             />
             <button className="chat-send-btn" type="submit">Send</button>

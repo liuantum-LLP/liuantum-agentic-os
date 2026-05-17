@@ -384,6 +384,40 @@ def dispatch(args: argparse.Namespace) -> Any:
         if command == "export" and rest:
             return {"output_path": export_agent_run_markdown(rest[0])}
         return {"commands": ["list", "show <slug>", "create <name>", "update <slug> <instructions>", "disable <slug>", "enable <slug>", "run <agent_slug> <prompt>", "runs", "export <run_id>"]}
+    if args.area == "models" and command == "roles":
+        from runtime.model_roles import ModelRoleManager
+        rm = ModelRoleManager()
+        return rm.get_all_roles()
+    if args.area == "models" and command == "role-set" and len(rest) >= 1:
+        from runtime.model_roles import ModelRoleManager
+        rm = ModelRoleManager()
+        role = rest[0]
+        _, options = parse_cli_options(rest[1:])
+        provider = options.get("provider", "")
+        model = options.get("model", "")
+        if not provider or not model:
+            return {"error": "Both --provider and --model are required.", "usage": "./liuant models role-set <role> --provider <provider> --model <model>"}
+        return rm.set_role(role, provider, model)
+    if args.area == "models" and command == "role-test" and rest:
+        from runtime.model_roles import ModelRoleManager
+        rm = ModelRoleManager()
+        return rm.test_role(rest[0])
+    if args.area == "models" and command == "role-reset" and rest:
+        from runtime.model_roles import ModelRoleManager
+        rm = ModelRoleManager()
+        return rm.reset_role(rest[0])
+    if args.area == "models" and command == "role-reset-all":
+        from runtime.model_roles import ModelRoleManager
+        rm = ModelRoleManager()
+        return rm.reset_all_roles()
+    if args.area == "models" and command == "discussion-status":
+        from runtime.model_roles import ModelRoleManager
+        rm = ModelRoleManager()
+        return rm.get_discussion_settings()
+    if args.area == "models" and command == "discussion-set" and len(rest) >= 2:
+        from runtime.model_roles import ModelRoleManager
+        rm = ModelRoleManager()
+        return rm.set_discussion_setting(rest[0], rest[1])
     if args.area == "models":
         manager = ModelManager()
         if command == "list":
@@ -398,7 +432,7 @@ def dispatch(args: argparse.Namespace) -> Any:
             return manager.set_default(rest[0])
         if command == "set-fallback" and len(rest) >= 2:
             return manager.set_fallback(rest[0], rest[1])
-        return {"commands": ["list", "setup", "test", "status", "set-default <provider>", "set-fallback <provider> <model>"]}
+        return {"commands": ["list", "setup", "test", "status", "set-default <provider>", "set-fallback <provider> <model>", "roles", "role-set <role> --provider <p> --model <m>", "role-test <role>", "role-reset <role>", "discussion-status", "discussion-set <key> <value>"]}
     if args.area == "providers":
         hub = ModelHub()
         if command == "categories":

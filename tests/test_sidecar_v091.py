@@ -155,7 +155,7 @@ def test_desktop_backend_mode_switching_preserves_modes():
 def test_sidecar_version_aligned_to_v102():
     from runtime.config import SettingsManager
     v = SettingsManager().get("app_version")["value"]
-    assert v == "1.0.2"
+    assert v == "1.1.0"
 
 
 # --- One-click startup tests ---
@@ -239,7 +239,7 @@ def test_desktop_always_binds_localhost():
     assert DEFAULT_HOST == "127.0.0.1"
 
 
-# --- Release polish tests (v1.0.2) ---
+# --- Release polish tests (v1.1.0) ---
 
 def test_pyproject_has_explicit_package_discovery():
     path = ROOT / "pyproject.toml"
@@ -265,7 +265,7 @@ def test_pyproject_exposes_liuant_script():
 def test_pyproject_version_bumped():
     path = ROOT / "pyproject.toml"
     content = path.read_text(encoding="utf-8")
-    assert "version = \"1.0.2\"" in content
+    assert "version = \"1.1.0\"" in content
 
 
 def test_ci_does_not_require_apple_credentials():

@@ -1,10 +1,10 @@
 {
   "app": "Liuant Agentic OS",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "channel": "stable-open-source",
   "platform": "macOS-26.5-arm64-arm-64bit-Mach-O",
-  "build_date": "2026-05-17T11:02:23.111058+00:00",
-  "git_commit": "a4501dc",
+  "build_date": "2026-05-17T18:28:37.351498+00:00",
+  "git_commit": "5ae02d2",
   "artifacts": [
     {
       "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/src-tauri/target/release/bundle/dmg/Liuant Agentic OS_1.0.0_aarch64.dmg",
@@ -124,18 +124,18 @@
       "notarized": false
     },
     {
-      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/assets/index-Dy0NoeSI.js",
-      "name": "index-Dy0NoeSI.js",
-      "size_bytes": 181898,
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/assets/index-DzcxRmsK.css",
+      "name": "index-DzcxRmsK.css",
+      "size_bytes": 14759,
       "artifact_type": "frontend",
       "platform": "frontend",
       "signed": false,
       "notarized": false
     },
     {
-      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/assets/index-IYnhGJDm.css",
-      "name": "index-IYnhGJDm.css",
-      "size_bytes": 13162,
+      "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/assets/index-BDJQlB29.js",
+      "name": "index-BDJQlB29.js",
+      "size_bytes": 187769,
       "artifact_type": "frontend",
       "platform": "frontend",
       "signed": false,
@@ -144,7 +144,7 @@
   ],
   "desktop": {
     "tauri_project_exists": true,
-    "desktop_version": "1.0.2",
+    "desktop_version": "1.1.0",
     "bundle_identifier": "com.liuant.agenticos",
     "build_artifacts_found": true,
     "native_artifacts_found": true,
@@ -407,18 +407,18 @@
         "notarized": false
       },
       {
-        "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/assets/index-Dy0NoeSI.js",
-        "name": "index-Dy0NoeSI.js",
-        "size_bytes": 181898,
+        "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/assets/index-DzcxRmsK.css",
+        "name": "index-DzcxRmsK.css",
+        "size_bytes": 14759,
         "artifact_type": "frontend",
         "platform": "frontend",
         "signed": false,
         "notarized": false
       },
       {
-        "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/assets/index-IYnhGJDm.css",
-        "name": "index-IYnhGJDm.css",
-        "size_bytes": 13162,
+        "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/assets/index-BDJQlB29.js",
+        "name": "index-BDJQlB29.js",
+        "size_bytes": 187769,
         "artifact_type": "frontend",
         "platform": "frontend",
         "signed": false,
@@ -476,15 +476,15 @@
       },
       {
         "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/index.html",
-        "sha256": "63b28be57663250dea29c0af0325a1470035a8bc561f94107b7d1a2a9430fafc"
+        "sha256": "c3f3f5f2f0479cacb17598150e8060dcece527d7bcbe40c5e71f1815aacd5ef3"
       },
       {
-        "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/assets/index-Dy0NoeSI.js",
-        "sha256": "24c2ff9db514926b75cdf21900dbfa1e94d805391bc28d5f066b785d43c4de7b"
+        "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/assets/index-DzcxRmsK.css",
+        "sha256": "b843621742efbc91be70cd65113814b2a2221287e8f9480601d8f8085600b7ea"
       },
       {
-        "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/assets/index-IYnhGJDm.css",
-        "sha256": "c80c2bdd26b78a8407bbb844033f6472a5424702ff257179e19f6c0a84a8b10c"
+        "path": "/Users/likhithbb/Downloads/liuant_ai/apps/desktop/dist/assets/index-BDJQlB29.js",
+        "sha256": "168c9d383c4b04d1e78eb9e6edadfb6206e6fdaf0e32fb48a2458fe6d226c2ff"
       }
     ],
     "dependency_gaps": [],

@@ -10,6 +10,7 @@ type SettingsSection = {
 const SECTIONS: SettingsSection[] = [
   { id: "general", label: "General" },
   { id: "providers", label: "Models & Providers" },
+  { id: "model-roles", label: "Model Roles" },
   { id: "connectors", label: "Connectors" },
   { id: "agents", label: "Agents" },
   { id: "automations", label: "Automations" },
@@ -23,6 +24,7 @@ const SECTIONS: SettingsSection[] = [
 const SECTION_HELP: Record<string, string> = {
   general: "App version, workspace path, permission mode, and local auth settings.",
   providers: "Configure AI providers and set default models for text, image, video, and embeddings.",
+  "model-roles": "Assign specific models to roles (Thinking, Coding, Planning). Configure Discussion Mode for multi-model collaboration.",
   connectors: "Connected external services. Use Chat to add Gmail, Telegram, LinkedIn, or X.",
   agents: "AI agents that perform tasks. Create and manage agents from here or through Chat.",
   automations: "Scheduled tasks that run agents on a recurring basis. Create and manage from Chat.",
@@ -68,6 +70,7 @@ export function SettingsPage() {
         <div className="settings-panel">
           {activeSection === "general" && <GeneralSettings settings={settings} />}
           {activeSection === "providers" && <ProvidersSettings />}
+          {activeSection === "model-roles" && <ModelRolesSettings />}
           {activeSection === "connectors" && <ConnectorsSettings />}
           {activeSection === "agents" && <AgentsSettings />}
           {activeSection === "automations" && <AutomationsSettings />}
@@ -355,6 +358,111 @@ function ReleaseSettings() {
         <code>./liuant release manifest</code>
       </div>
       <p className="setting-note">The DMG is unsigned. macOS will show security warnings. See docs/MACOS_UNSIGNED_INSTALL_QA.md for install steps.</p>
+    </div>
+  );
+}
+
+function ModelRolesSettings() {
+  const [roles, setRoles] = useState<Record<string, unknown> | null>(null);
+  const [discussion, setDiscussion] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      apiGet<Record<string, unknown>>("/api/models/roles").catch(() => null),
+      apiGet<Record<string, unknown>>("/api/models/discussion").catch(() => null),
+    ]).then(([r, d]) => {
+      setRoles(r);
+      setDiscussion(d);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) return <LoadingSpinner label="Loading model roles..." />;
+
+  const roleDefs = (roles?.roles || {}) as Record<string, { provider: string; model: string }>;
+  const disc = discussion || {};
+  const roleLabels: Record<string, string> = {
+    default: "Default Model",
+    thinking: "Thinking Model",
+    coding: "Coding Model",
+    planning: "Planning Model",
+    fast: "Fast Model (optional)",
+    fallback: "Fallback Model (optional)",
+  };
+  const roleDescriptions: Record<string, string> = {
+    default: "Used when no specific role is needed.",
+    thinking: "Deep reasoning, analysis, strategy, reviews, architecture.",
+    coding: "Code generation, debugging, refactoring, tests.",
+    planning: "Roadmaps, task breakdowns, execution plans, timelines.",
+    fast: "Quick summaries, simple chat, low-cost responses.",
+    fallback: "Used if selected role model is unavailable.",
+  };
+
+  return (
+    <div className="settings-section">
+      <h4>Model Roles</h4>
+      <p className="setting-note">Assign specific models to roles for better task-specific responses.</p>
+      {Object.entries(roleLabels).map(([key, label]) => {
+        const cfg = roleDefs[key] || { provider: "", model: "" };
+        const provider = (cfg as any).provider || "";
+        const model = (cfg as any).model || "";
+        const isOptional = key === "fast" || key === "fallback";
+        const isCloud = ["openai", "openrouter", "anthropic", "gemini", "groq", "mistral", "together", "fireworks"].includes(provider.toLowerCase());
+        return (
+          <div key={key} className="setting-row">
+            <span className="setting-label">
+              {label}
+              {isOptional && <span className="setting-optional"> (optional)</span>}
+            </span>
+            <span className="setting-value">
+              {provider && model ? (
+                <span>
+                  <span className={isCloud ? "status-warn" : "status-good"}>
+                    {provider}/{model}
+                  </span>
+                  {isCloud && <span className="cost-badge"> ☁️ cloud</span>}
+                  {!isCloud && provider && <span className="local-badge"> 🖥️ local</span>}
+                </span>
+              ) : (
+                <span className="status-warn">Not configured</span>
+              )}
+            </span>
+          </div>
+        );
+      })}
+      <h4>Discussion Mode</h4>
+      <p className="setting-note">
+        Discussion Mode lets multiple models collaborate on a response. Each model gives an independent answer, then reviews others, and a final model synthesizes the best response.
+        <br />
+        <strong>Warning:</strong> Discussion Mode uses multiple model calls per round. Cloud models will incur costs.
+      </p>
+      <div className="setting-row">
+        <span className="setting-label">Enabled</span>
+        <span className={`setting-value ${disc.discussion_mode_enabled === true ? "status-good" : "status-warn"}`}>
+          {disc.discussion_mode_enabled === true ? "Yes" : "No (disabled by default)"}
+        </span>
+      </div>
+      <div className="setting-row">
+        <span className="setting-label">Default Rounds</span>
+        <span className="setting-value">{String(disc.discussion_mode_default_rounds || 2)}</span>
+      </div>
+      <div className="setting-row">
+        <span className="setting-label">Max Rounds</span>
+        <span className="setting-value">{String(disc.discussion_mode_max_rounds || 4)}</span>
+      </div>
+      <div className="setting-row">
+        <span className="setting-label">Final Judge Model</span>
+        <span className="setting-value">{String(disc.discussion_mode_final_role || "thinking")}</span>
+      </div>
+      <h4>CLI Commands</h4>
+      <div className="setting-commands">
+        <code>./liuant models roles</code>
+        <code>./liuant models role-set thinking --provider openrouter --model "deepseek/deepseek-reasoner"</code>
+        <code>./liuant models role-set coding --provider openrouter --model "qwen/qwen3-coder"</code>
+        <code>./liuant models role-test thinking</code>
+        <code>./liuant models discussion-status</code>
+      </div>
     </div>
   );
 }

@@ -1,16 +1,20 @@
 {
   "app": "Liuant Agentic OS",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "channel": "stable-open-source",
   "minimum_python": "3.11",
   "supported_platforms": ["macos", "linux", "windows"],
   "release_notes": [
-    "v1.0.2 Python packaging fix",
-    "Explicit setuptools package discovery — no more flat-layout errors",
-    "CI runs fully on GitHub Actions — no Apple credentials required",
-    "One-click startup CLI commands: one-click-check, launch-check",
-    "Desktop app auto-polls backend on launch with loading screen",
-    "Public install docs updated with pip editable install and one-click flow",
-    "475+ tests, frontend builds clean, all release checks pass"
+    "v1.1.0 Multi-model role configuration and discussion mode",
+    "Model Roles: Default, Thinking, Coding, Planning, Fast, Fallback",
+    "Discussion Mode: multi-model collaboration with configurable rounds",
+    "Settings UI: new Model Roles section with role status and discussion controls",
+    "Chat UI: Discussion Mode toggle, rounds selector, transcript viewer",
+    "CLI: models roles, role-set, role-test, role-reset, discussion-status",
+    "API: /api/models/roles, /api/chat/discussion endpoints",
+    "Agent integration: preferred_model_role, allow_discussion_mode",
+    "Automation integration: model_role, discussion_mode_enabled",
+    "Safety: secret redaction, cost warnings, max rounds cap",
+    "513 tests pass, frontend builds clean"
   ]
 }

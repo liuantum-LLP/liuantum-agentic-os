@@ -22,7 +22,7 @@ def as_bool(value: str) -> bool:
 class SettingsManager:
     defaults = {
         "app_name": "Liuant Agentic OS",
-        "app_version": "1.0.2",
+        "app_version": "1.1.0",
         "app_environment": "local",
         "default_workspace": "default",
         "default_agent": "content-creator-agent",
@@ -72,6 +72,11 @@ class SettingsManager:
         "desktop_backend_mode": "external_backend",
         "desktop_backend_url": "http://127.0.0.1:8765",
         "desktop_auto_start_backend": "false",
+        "model_roles_config": "{}",
+        "discussion_mode_enabled": "false",
+        "discussion_mode_default_rounds": "2",
+        "discussion_mode_max_rounds": "4",
+        "discussion_mode_final_role": "thinking",
     }
 
     def ensure_defaults(self) -> None:
