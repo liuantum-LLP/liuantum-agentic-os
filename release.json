@@ -1,15 +1,16 @@
 {
   "app": "Liuant Agentic OS",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "channel": "stable-open-source",
   "minimum_python": "3.11",
   "supported_platforms": ["macos", "linux", "windows"],
   "release_notes": [
-    "v1.0.0 stable local desktop release",
-    "MIT License, open-source, community-build-first",
-    "Sidecar backend built and tested with PyInstaller",
-    "Three backend modes: external_backend, managed_backend, bundled_sidecar",
-    "Unsigned community DMG — signing is optional for maintainers only",
-    "466 tests passing, TypeScript clean, frontend builds"
+    "v1.0.2 Python packaging fix",
+    "Explicit setuptools package discovery — no more flat-layout errors",
+    "CI runs fully on GitHub Actions — no Apple credentials required",
+    "One-click startup CLI commands: one-click-check, launch-check",
+    "Desktop app auto-polls backend on launch with loading screen",
+    "Public install docs updated with pip editable install and one-click flow",
+    "475+ tests, frontend builds clean, all release checks pass"
   ]
 }

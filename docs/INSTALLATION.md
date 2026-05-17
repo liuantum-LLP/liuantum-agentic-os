@@ -1,18 +1,21 @@
 # Installation
 
-## macOS and Linux
+## Developer Installation (Editable)
 
 ```bash
-./installer/install_macos.sh
-./installer/install_linux.sh
-```
+# Clone
+git clone https://github.com/liuant/liuant-agentic-os.git
+cd liuant_ai
 
-The scripts create `.venv`, install Liuant in editable mode, create workspace folders, copy `.env.example` only if `.env` is missing, then run repair and doctor checks.
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
 
-## Windows
+# Install in editable mode
+python -m pip install -e .
 
-```powershell
-.\installer\install_windows.ps1
+# Verify
+./liuant doctor
 ```
 
 ## First Run
@@ -20,10 +23,19 @@ The scripts create `.venv`, install Liuant in editable mode, create workspace fo
 ```bash
 ./liuant repair
 ./liuant doctor
-./liuant auth token
 ./liuant start
-./liuant open
 ```
+
+## One-Click Startup
+
+Check what auto-start strategies are available, then attempt launch:
+
+```bash
+./liuant desktop one-click-check
+./liuant desktop launch-check
+```
+
+The desktop app also auto-polls the backend on launch with a loading screen.
 
 ## Sidecar Backend (Optional)
 
@@ -31,8 +43,7 @@ Build a standalone backend executable for automatic desktop integration:
 
 ```bash
 # Install PyInstaller (optional dependency)
-pip install liuant-agentic-os[sidecar]
-# or: pip install pyinstaller
+pip install -e ".[sidecar]"
 
 # Build the sidecar executable (~9.7 MB)
 ./liuant sidecar build --confirm
@@ -61,25 +72,14 @@ The Tauri scaffold exists under `apps/desktop`.
 ./liuant signing status
 ./liuant start 8765
 cd apps/desktop
-pnpm install
-pnpm run typecheck
-pnpm run build
-pnpm tauri dev
+npm install
+npm run typecheck
+npm run build
+npm run tauri:dev      # or: npm run tauri build
 ```
 
-If `pnpm` is unavailable, use `npm install`, `npm run typecheck`, `npm run build`, and `npm run tauri:dev`.
-
-Native Tauri dev/build requires Rust and Cargo. If those are missing, `desktop check` shows setup instructions and release checks remain honest. Native builds remain unsigned and not notarized.
-
-Platform build helper scripts are available after local dependencies are installed:
-
-```bash
-scripts/build_desktop_macos.sh
-scripts/build_desktop_linux.sh
-scripts/build_desktop_windows.ps1
-```
-
-They write `release/build-report.json` and do not request privileged installs.
+Native Tauri dev/build requires Rust and Cargo platform prerequisites.
+Native builds remain unsigned and not notarized — see `docs/MACOS_SIGNING_NOTARIZATION.md` for optional maintainer signing.
 
 ## Backend Mode
 

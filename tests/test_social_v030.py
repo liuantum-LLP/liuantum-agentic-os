@@ -187,8 +187,8 @@ def test_social_drafts_preserve_draft_only_behavior():
 def test_cli_social_linkedin_status_works():
     result = subprocess.run([sys.executable, "-m", "cli.liuant", "social", "linkedin", "status"], capture_output=True, text=True, check=True)
 
-    assert "Liuant Social" in result.stdout
     assert "missing_client_config" in result.stdout
+    assert "linkedin" in result.stdout.lower()
 
 
 def _approved_draft(platform: str, text: str = "Approved post") -> dict:

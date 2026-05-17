@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { apiGet, apiPost, clearAuthToken, getApiBase, getAuthToken, sanitizeError, setApiBase, setAuthToken } from "./api/client";
 import { ChatPage } from "./pages/ChatPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -35,19 +35,61 @@ function App() {
   const [showOnboarding, setShowOnboarding] = useState(
     !localStorage.getItem("LIUANT_ONBOARDING_DONE")
   );
+  const [starting, setStarting] = useState(false);
+  const [startMessage, setStartMessage] = useState("");
+  const retryRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function checkBackend() {
     try {
       const status = await apiGet<Record<string, unknown>>("/api/system/status");
       setBackendOnline(true);
       setBackendMode(String(status.desktop_backend_mode || "external_backend"));
+      setStarting(false);
+      setStartMessage("");
+      retryRef.current = 0;
+      return true;
     } catch {
       setBackendOnline(false);
+      return false;
     }
   }
 
+  function startPolling() {
+    retryRef.current = 0;
+    setStarting(true);
+    setStartMessage("Starting Liuant...");
+    poll();
+  }
+
+  async function poll() {
+    const online = await checkBackend();
+    if (online) return;
+    retryRef.current++;
+    const attempt = retryRef.current;
+    const maxAttempts = 15;
+    if (attempt > maxAttempts) {
+      setStarting(false);
+      setStartMessage("Backend could not be started automatically.");
+      return;
+    }
+    setStartMessage(`Starting backend (attempt ${attempt}/${maxAttempts})...`);
+    const delay = Math.min(1000 * Math.pow(1.3, attempt - 1), 8000);
+    timerRef.current = setTimeout(poll, delay);
+  }
+
+  function handleRetry() {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    startPolling();
+  }
+
   useEffect(() => {
-    checkBackend();
+    checkBackend().then((online) => {
+      if (!online) startPolling();
+    });
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, []);
 
   async function handleLogin() {
@@ -79,6 +121,20 @@ function App() {
   }
 
   function renderPage() {
+    if (starting) {
+      return (
+        <div className="loading-screen">
+          <div className="loading-spinner" />
+          <h3>{startMessage || "Starting Liuant..."}</h3>
+          <p className="loading-hint">The backend is starting. Should be ready in a moment.</p>
+          <div className="offline-actions">
+            <button onClick={handleRetry}>Retry Now</button>
+            <button className="secondary" onClick={() => { setActive("settings"); setStarting(false); }}>Advanced Setup</button>
+          </div>
+        </div>
+      );
+    }
+
     if (!backendOnline && active !== "settings") {
       return (
         <div className="offline-banner">
@@ -94,11 +150,12 @@ function App() {
             </svg>
           </div>
           <h3>Backend not reachable</h3>
-          <p>Start the Liuant backend to use the desktop app.</p>
+          <p>{startMessage || "Start the Liuant backend to use the desktop app."}</p>
           <code className="offline-cmd">./liuant start</code>
           <div className="offline-actions">
-            <button onClick={checkBackend}>Retry Connection</button>
+            <button onClick={handleRetry}>Retry Connection</button>
             <button className="secondary" onClick={() => setShowLogin(true)}>Login</button>
+            <button className="secondary" onClick={() => setActive("settings")}>Advanced Setup</button>
           </div>
           <p className="offline-hint">Run from the project root directory. The backend binds to <code>127.0.0.1:8765</code>.</p>
         </div>
@@ -125,7 +182,7 @@ function App() {
         <div className="sidebar-brand">
           <div className="brand-icon">LA</div>
           <h1>Liuant Agentic OS</h1>
-          <span className="sidebar-version">v1.0.0</span>
+          <span className="sidebar-version">v1.0.2</span>
         </div>
         <nav className="sidebar-nav">
           {NAV_ITEMS.map((item) => (

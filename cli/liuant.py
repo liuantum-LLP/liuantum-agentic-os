@@ -61,7 +61,7 @@ EXAMPLES = {
     "reset": ["liuant reset --confirm true"],
     "update-check": ["liuant update-check"],
     "release-check": ["liuant release-check"],
-    "desktop": ["liuant desktop status", "liuant desktop icons-check", "liuant desktop build-guide", "liuant desktop native-check", "liuant desktop build --frontend-only", "liuant desktop backend-status", "liuant desktop backend-mode", "liuant desktop first-run-check", "liuant desktop polish-check"],
+    "desktop": ["liuant desktop status", "liuant desktop icons-check", "liuant desktop build-guide", "liuant desktop native-check", "liuant desktop build --frontend-only", "liuant desktop backend-status", "liuant desktop backend-mode", "liuant desktop first-run-check", "liuant desktop polish-check", "liuant desktop one-click-check", "liuant desktop launch-check"],
     "release": ["liuant release manifest", "liuant release checksum", "liuant release artifacts", "liuant release unsigned-artifacts", "liuant release unsigned-build-check", "liuant release verify-artifacts", "liuant release desktop-report", "liuant release build-report", "liuant release macos-qa", "liuant release polish-check", "liuant release candidate-check"],
     "signing": ["liuant signing status", "liuant signing check", "liuant signing docs", "liuant signing macos-status", "liuant signing macos-guide", "liuant signing macos-export-env-template", "liuant signing macos-preflight", "liuant signing macos-sign --dry-run", "liuant signing macos-notarize --dry-run"],
     "sidecar": ["liuant sidecar status", "liuant sidecar build --confirm", "liuant sidecar check", "liuant sidecar run", "liuant sidecar stop --confirm"],
@@ -250,7 +250,11 @@ def dispatch(args: argparse.Namespace) -> Any:
             return release.desktop_first_run_check()
         if command == "polish-check":
             return release.desktop_polish_check()
-        return {"commands": ["status", "check", "icons-check", "icons-generate", "native-check", "rust-check", "tauri-check", "build-guide", "build-report", "dev", "build", "backend-status", "backend-mode", "backend-start", "backend-stop", "backend-restart", "package-info", "first-run-check", "polish-check"]}
+        if command == "one-click-check":
+            return release.desktop_one_click_check()
+        if command == "launch-check":
+            return release.desktop_launch_check()
+        return {"commands": ["status", "check", "icons-check", "icons-generate", "native-check", "rust-check", "tauri-check", "build-guide", "build-report", "dev", "build", "backend-status", "backend-mode", "backend-start", "backend-stop", "backend-restart", "package-info", "first-run-check", "polish-check", "one-click-check", "launch-check"]}
     if args.area == "release":
         release = ReleaseManager()
         if command == "manifest":

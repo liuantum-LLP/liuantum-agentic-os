@@ -402,14 +402,14 @@ def test_preflight_prefers_current_version_artifact(mock_stale, mock_current):
 def test_version_matches_passes_with_current_artifact(mock_stale, mock_current):
     _clear_apple_env()
     mock_current.return_value = {
-        "name": "Liuant Agentic OS_1.0.0_aarch64.dmg",
-        "path": "/tmp/fake_v100.dmg",
+        "name": "Liuant Agentic OS_1.0.2_aarch64.dmg",
+        "path": "/tmp/fake_v102.dmg",
         "artifact_type": "native",
     }
     mock_stale.return_value = []
     with patch.object(ReleaseManager(), "_native_artifacts_detailed") as mock_detailed:
         mock_detailed.return_value = [
-            {"name": "Liuant Agentic OS_1.0.0_aarch64.dmg", "path": "/tmp/fake_v100.dmg", "artifact_type": "native"},
+            {"name": "Liuant Agentic OS_1.0.2_aarch64.dmg", "path": "/tmp/fake_v102.dmg", "artifact_type": "native"},
         ]
         with patch.object(Path, "exists") as mock_exists:
             mock_exists.return_value = True

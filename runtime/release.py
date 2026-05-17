@@ -1156,6 +1156,142 @@ class ReleaseManager:
             },
         }
 
+    def desktop_one_click_check(self) -> dict[str, Any]:
+        """Check if backend can be started with one click."""
+        settings = self._desktop_backend_settings()
+        mode = settings["desktop_backend_mode"]
+
+        backend_reachable = False
+        try:
+            import urllib.request
+            req = urllib.request.Request(f"{settings['desktop_backend_url']}/api/system/status", method="GET")
+            req.add_header("Accept", "application/json")
+            with urllib.request.urlopen(req, timeout=3) as response:
+                if response.status == 200:
+                    backend_reachable = True
+        except Exception:
+            pass
+
+        if backend_reachable:
+            return {
+                "status": "already_running",
+                "url": settings["desktop_backend_url"],
+                "mode": mode,
+                "message": "Backend is already reachable.",
+                "localhost_only": True,
+            }
+
+        from runtime.sidecar import sidecar_status as _sc_status
+        sc = _sc_status()
+        sidecar_available = sc.get("status") == "available"
+        managed_available = mode == "managed_backend"
+
+        strategies = []
+        if sidecar_available:
+            strategies.append({
+                "method": "start_sidecar",
+                "command": "./liuant sidecar run",
+                "description": "Start the bundled sidecar backend executable",
+                "available": True,
+            })
+        if managed_available:
+            strategies.append({
+                "method": "start_managed",
+                "command": "./liuant desktop backend-start",
+                "description": "Start managed backend process from CLI",
+                "available": True,
+            })
+        strategies.append({
+            "method": "user_action",
+            "command": "./liuant start",
+            "description": "Start backend manually in a terminal",
+            "available": True,
+        })
+
+        best = strategies[0] if strategies else strategies[-1]
+
+        return {
+            "status": "needs_start",
+            "mode": mode,
+            "strategies": strategies,
+            "recommended": best["method"],
+            "command": best["command"],
+            "message": f"Backend not reachable. Recommended: {best['description']}.",
+            "sidecar_available": sidecar_available,
+            "managed_available": managed_available,
+            "localhost_only": True,
+        }
+
+    def desktop_launch_check(self) -> dict[str, Any]:
+        """Try to start the backend with one click — desktop-friendly."""
+        settings = self._desktop_backend_settings()
+        mode = settings["desktop_backend_mode"]
+        host = DEFAULT_HOST
+        port = DEFAULT_PORT
+        url = settings["desktop_backend_url"]
+
+        try:
+            import urllib.request
+            req = urllib.request.Request(f"{url}/api/system/status", method="GET")
+            req.add_header("Accept", "application/json")
+            with urllib.request.urlopen(req, timeout=3) as response:
+                if response.status == 200:
+                    return {
+                        "status": "already_running",
+                        "url": url,
+                        "mode": mode,
+                        "message": "Backend is already running.",
+                    }
+        except Exception:
+            pass
+
+        if mode == "bundled_sidecar":
+            from runtime.sidecar import sidecar_run as _sidecar_run
+            result = _sidecar_run(host=host, port=port)
+            if result["status"] in ("started", "already_running"):
+                return {
+                    **result,
+                    "mode": mode,
+                    "launch_method": "sidecar",
+                    "message": "Sidecar backend started.",
+                }
+
+        if mode == "managed_backend":
+            result = self.desktop_backend_start(host=host, port=port)
+            if result["status"] in ("started", "already_running"):
+                return {
+                    **result,
+                    "launch_method": "managed",
+                    "message": "Managed backend started.",
+                }
+
+        if mode not in ("bundled_sidecar", "managed_backend"):
+            from runtime.sidecar import sidecar_status as _sc_status
+            sc = _sc_status()
+            if sc.get("status") == "available":
+                from runtime.sidecar import sidecar_run as _sidecar_run
+                result = _sidecar_run(host=host, port=port)
+                if result["status"] in ("started", "already_running"):
+                    return {
+                        **result,
+                        "mode": mode,
+                        "launch_method": "sidecar_fallback",
+                        "note": "Started via sidecar even though mode is not bundled_sidecar.",
+                        "message": "Sidecar backend started (fallback).",
+                    }
+
+        return {
+            "status": "cannot_start",
+            "mode": mode,
+            "message": "Cannot start backend automatically. Start it manually: ./liuant start",
+            "instructions": [
+                "1. Open a terminal in the project root directory.",
+                "2. Run: ./liuant start",
+                "3. Wait for 'Backend started' message.",
+                "4. Return to this app and click Retry.",
+            ],
+        }
+
     def desktop_backend_start(self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> dict[str, Any]:
         """Start managed backend with PID tracking and safety checks."""
         from datetime import datetime, timezone
@@ -2481,8 +2617,8 @@ class ReleaseManager:
         failed = 0
 
         v = SettingsManager().get("app_version")["value"]
-        checks.append({"name": "version_aligned", "status": "passed" if v == "1.0.0" else "failed", "version": v})
-        if v == "1.0.0": passed += 1
+        checks.append({"name": "version_aligned", "status": "passed" if v == "1.0.2" else "failed", "version": v})
+        if v == "1.0.2": passed += 1
         else: failed += 1
 
         for fname in ("LICENSE", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "SECURITY.md", "ROADMAP.md", "SUPPORT.md", ".gitignore", ".env.example"):

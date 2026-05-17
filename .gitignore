@@ -49,3 +49,6 @@ oauth_token.json
 
 # Virtual environment
 .venv/
+
+# pip install -e . generates egg-info
+*.egg-info/

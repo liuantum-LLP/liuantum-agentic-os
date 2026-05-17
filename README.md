@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Liuant Agentic OS
 
 **Open-source, local-first AI agent operating system for building, managing, and automating AI agents from chat.**
@@ -7,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/liuant/liuant-agentic-os/actions/workflows/ci.yml/badge.svg)](https://github.com/liuant/liuant-agentic-os/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.0.0-brightgreen.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.0.2-brightgreen.svg)](CHANGELOG.md)
 
 Liuant Agentic OS is a local-first AI agent operating system. It is **not a cloud service** — everything runs on your machine. You configure providers, create agents, set up automations, connect social accounts, and manage drafts — all through a chat interface.
 
@@ -51,27 +50,37 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
 
+# Verify installation
+./liuant doctor
+
 # Run tests
 pytest -q
 
 # Start the backend
-cp .env.example .env   # edit with your API keys if desired
 ./liuant start
+
+# One-click startup check (desktop app)
+./liuant desktop one-click-check
+./liuant desktop launch-check
 
 # Open the desktop UI
 cd apps/desktop
 npm install
-npm run typecheck
 npm run build
-npm run tauri:dev       # requires Rust/Cargo
+# or: npm run tauri:dev  (requires Rust/Cargo)
 ```
 
 ## CLI Examples
 
 ```bash
+# Installation and setup
 ./liuant doctor
 ./liuant status
 ./liuant auth token
+
+# One-click startup
+./liuant desktop one-click-check
+./liuant desktop launch-check
 
 # Configure through chat
 ./liuant chat "Connect Telegram"
@@ -93,6 +102,11 @@ npm run tauri:dev       # requires Rust/Cargo
 ./liuant desktop build --native
 ./liuant release polish-check
 
+# Sidecar (optional, for bundled backend executable)
+pip install -e ".[sidecar]"
+./liuant sidecar build --confirm
+./liuant sidecar status
+
 # Signing (optional, maintainers only)
 ./liuant signing macos-status
 ```
@@ -100,6 +114,13 @@ npm run tauri:dev       # requires Rust/Cargo
 ## Desktop
 
 The desktop app is a Tauri + React + TypeScript shell. It connects to the local backend at `http://127.0.0.1:8765`.
+
+**One-click startup:** On launch, the desktop app auto-detects the backend. If unreachable, it polls with exponential backoff and shows a "Starting Liuant..." loading screen. Use the CLI equivalents to check:
+
+```bash
+./liuant desktop one-click-check   # what auto-start strategies are available
+./liuant desktop launch-check      # attempt auto-start
+```
 
 **Community builds are unsigned.** On macOS, you may need to right-click and Open the app the first time. Signing and notarization are optional and only needed for official distribution without Gatekeeper warnings. See `docs/MACOS_SIGNING_NOTARIZATION.md` for the maintainer signing workflow.
 
@@ -181,7 +202,3 @@ See [SECURITY.md](SECURITY.md) for our security policy and how to report vulnera
 - Approval-gated external actions.
 - No secrets in logs.
 - Report vulnerabilities privately to admin@liuantum.com.
-# liuant-agentic-os
-=======
-# liuantum-agentic-os
->>>>>>> f7b9aa97bc030f30229b87d126de7d2f8a3a8aa6

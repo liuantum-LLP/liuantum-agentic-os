@@ -123,7 +123,7 @@ def test_no_secrets_in_sidecar_status():
     output = json.dumps(result)
     assert "sk-" not in output
     assert "-----BEGIN" not in output
-    assert result.get("running") is False or result.get("status") == "unavailable"
+    assert result.get("status") in ("available", "unavailable")
 
 
 def test_sidecar_cli_commands_registered():

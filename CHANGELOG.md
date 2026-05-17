@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.0.2
+
+- **Python package discovery fixed**: Explicit `[tool.setuptools.packages.find]` with `runtime*`, `cli*`, `sidecar*` — no more flat-layout pip install errors.
+- **One-click startup**: `./liuant desktop one-click-check` and `./liuant desktop launch-check` commands added. Desktop app auto-polls backend with loading screen.
+- **CI ready**: GitHub Actions runs without Apple credentials, provider keys, Rust/Tauri builds, signing, or notarization.
+- **Public install docs**: README and INSTALLATION.md document `pip install -e .`, one-click startup, and optional sidecar build.
+- **Gitignore audit**: Verified zero generated/tracked workspace, sidecar build, desktop build, or egg-info files.
+- **Six pre-existing test failures fixed**: version alignment, Rich rendering format assertions.
+- **531 tests passing**, TypeScript clean, frontend builds clean.
+- **Version 1.0.2** across all files.
+
 ## v1.0.0
 
 - **v1.0.0 stable local desktop release**.
