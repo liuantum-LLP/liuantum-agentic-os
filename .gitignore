@@ -8,11 +8,8 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
-# Workspace
-workspace/secrets/
-workspace/backups/
-workspace/managed_backend.json
-workspace/outputs/
+# Workspace (all runtime data, logs, secrets)
+workspace/
 
 # Database
 *.db
@@ -23,6 +20,12 @@ workspace/outputs/
 apps/desktop/node_modules/
 apps/desktop/dist/
 apps/desktop/src-tauri/target/
+
+# Sidecar build artifacts
+sidecar/build/
+sidecar/liuant-backend
+sidecar/liuant-backend.spec
+*.spec
 
 # Release build reports (machine-local paths)
 release/build-report.json
@@ -37,9 +40,12 @@ Thumbs.db
 *.swp
 *.swo
 
-# Secrets and tokens - DO NOT COMMIT
+# Secrets and tokens — DO NOT COMMIT
 *.pem
 *.key
 credentials.json
 token.json
 oauth_token.json
+
+# Virtual environment
+.venv/
