@@ -23,28 +23,24 @@ from runtime.sidecar import (
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def test_sidecar_build_mocked_pyinstaller_success():
+def test_sidecar_build_mocked_pyinstaller_success(tmp_path, monkeypatch):
     """sidecar build with mocked PyInstaller returns completed."""
+    import runtime.sidecar
+    monkeypatch.setattr(runtime.sidecar, "SIDECAR_DIR", tmp_path)
+    fake_exe = tmp_path / "liuant-backend"
+    fake_exe.write_text("#!/bin/sh\necho fake", encoding="utf-8")
+    fake_exe.chmod(0o755)
+
     with (
         patch("runtime.sidecar._required_packaging_tools") as mock_tools,
         patch("runtime.sidecar.subprocess.run") as mock_run,
-        patch("runtime.sidecar.Path.stat") as mock_stat,
+        patch("runtime.sidecar._sidecar_executable_path") as mock_exe_path,
     ):
         mock_tools.return_value = {"pyinstaller": True, "nuitka": False, "zipapp": True}
         mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-        mock_stat.return_value = MagicMock(st_size=9_938_544)
-
-        with patch("runtime.sidecar._sidecar_executable_path") as mock_exe_path:
-            fake_exe = ROOT / "sidecar" / "liuant-backend"
-            if not fake_exe.exists():
-                fake_exe = ROOT / "sidecar" / "liuant-backend"
-                fake_exe.parent.mkdir(parents=True, exist_ok=True)
-                fake_exe.write_text("#!/bin/sh\necho fake", encoding="utf-8")
-                fake_exe.chmod(0o755)
-
-            mock_exe_path.return_value = fake_exe
-            result = sidecar_build(confirm=True)
-            assert result["status"] in ("completed", "build_failed")
+        mock_exe_path.return_value = fake_exe
+        result = sidecar_build(confirm=True)
+        assert result["status"] in ("completed", "build_failed")
 
 
 def test_sidecar_status_detects_executable():
