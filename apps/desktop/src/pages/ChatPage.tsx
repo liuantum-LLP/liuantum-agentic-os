@@ -45,6 +45,8 @@ export function ChatPage() {
   const [discussionRounds, setDiscussionRounds] = useState(2);
   const [discussionRoles, setDiscussionRoles] = useState<string[]>(["auto"]);
   const [discussionSettings, setDiscussionSettings] = useState<Record<string, unknown> | null>(null);
+  const [streamingMode, setStreamingMode] = useState(false);
+  const [streamingAbort, setStreamingAbort] = useState<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -72,7 +74,31 @@ export function ChatPage() {
     addMessage({ role: "user", content: message });
     setState((prev) => ({ ...prev, loading: true }));
     try {
-      if (discussionMode) {
+      if (discussionMode && streamingMode) {
+        const msg: ChatMessage = {
+          role: "assistant",
+          content: "Streaming is not yet available for Discussion Mode. Running normal discussion response.",
+          intent: "discussion",
+        };
+        addMessage(msg);
+        const result = await apiPost<{
+          status: string;
+          final_answer: string;
+          transcript?: { role: string; round: number; content: string; status: string }[];
+          roles_used?: string[];
+          warnings?: string[];
+          cost_note?: string;
+          fallback_used?: boolean;
+        }>("/api/chat/discussion", { message: message.trim(), roles: discussionRoles, rounds: discussionRounds });
+        setState((prev) => ({
+          ...prev,
+          messages: prev.messages.map((m, i) =>
+            i === prev.messages.length - 1
+              ? { ...m, content: result.final_answer || "Discussion completed.", discussionTranscript: result.transcript, discussionRoles: result.roles_used, discussionWarnings: result.warnings, discussionCostNote: result.cost_note }
+              : m
+          ),
+        }));
+      } else if (discussionMode) {
         const result = await apiPost<{
           status: string;
           final_answer: string;
@@ -92,6 +118,70 @@ export function ChatPage() {
           discussionCostNote: result.cost_note,
         };
         addMessage(msg);
+      } else if (streamingMode) {
+        const abortController = new AbortController();
+        setStreamingAbort(abortController);
+        const msgIndex = state.messages.length;
+        addMessage({ role: "assistant", content: "", intent: "streaming" });
+        let fullText = "";
+        let provider = "";
+        let model = "";
+        try {
+          const response = await fetch("/api/chat/stream", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: message.trim() }),
+            signal: abortController.signal,
+          });
+          const reader = response.body?.getReader();
+          if (!reader) throw new Error("No reader");
+          const decoder = new TextDecoder();
+          let buffer = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                try {
+                  const chunk = JSON.parse(line.slice(6));
+                  if (chunk.type === "token") {
+                    fullText += chunk.content;
+                    provider = chunk.provider || provider;
+                    model = chunk.model || model;
+                    setState((prev) => ({
+                      ...prev,
+                      messages: prev.messages.map((m, i) =>
+                        i === msgIndex ? { ...m, content: fullText, providerUsed: provider, modelUsed: model } : m
+                      ),
+                    }));
+                  } else if (chunk.type === "error") {
+                    setState((prev) => ({
+                      ...prev,
+                      messages: prev.messages.map((m, i) =>
+                        i === msgIndex ? { ...m, content: fullText + "\n\nError: " + chunk.content } : m
+                      ),
+                    }));
+                  } else if (chunk.type === "done") {
+                    break;
+                  }
+                } catch {}
+              }
+            }
+          }
+        } catch (err: any) {
+          if (err.name !== "AbortError") {
+            setState((prev) => ({
+              ...prev,
+              messages: prev.messages.map((m, i) =>
+                i === msgIndex ? { ...m, content: fullText || "Streaming failed. Make sure the server is running." } : m
+              ),
+            }));
+          }
+        }
+        setStreamingAbort(null);
       } else {
         const result = await apiPost<{
           intent: string;
@@ -135,6 +225,13 @@ export function ChatPage() {
       addMessage({ role: "assistant", content: "Sorry, I couldn't reach the backend. Make sure the server is running.", intent: "error" });
     }
     setState((prev) => ({ ...prev, loading: false }));
+  }
+
+  function stopStreaming() {
+    if (streamingAbort) {
+      streamingAbort.abort();
+      setStreamingAbort(null);
+    }
   }
 
   async function handleFieldSubmit(value: string) {
@@ -264,7 +361,7 @@ export function ChatPage() {
         {state.loading && (
           <div className="chat-message assistant">
             <div className="chat-bubble">
-              <span className="chat-typing">{discussionMode ? "Models discussing..." : "thinking..."}</span>
+              <span className="chat-typing">{discussionMode ? "Models discussing..." : streamingMode ? "Generating..." : "thinking..."}</span>
             </div>
           </div>
         )}
@@ -275,12 +372,22 @@ export function ChatPage() {
         <label className="chat-toggle">
           <input
             type="checkbox"
+            checked={streamingMode}
+            onChange={(e) => setStreamingMode(e.target.checked)}
+          />
+          Streaming
+        </label>
+        <label className="chat-toggle">
+          <input
+            type="checkbox"
             checked={discussionMode}
             onChange={(e) => setDiscussionMode(e.target.checked)}
+            disabled={streamingMode}
           />
           Discussion Mode
+          {discussionMode && streamingMode && <span className="chat-discussion-note"> (disabled while streaming)</span>}
         </label>
-        {discussionMode && (
+        {discussionMode && !streamingMode && (
           <div className="chat-discussion-controls">
             <select
               className="chat-discussion-rounds"
@@ -320,10 +427,20 @@ export function ChatPage() {
               className="chat-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={discussionMode ? "Ask anything — multiple models will collaborate..." : "Ask me anything..."}
+              placeholder={
+                discussionMode
+                  ? "Ask anything — multiple models will collaborate..."
+                  : streamingMode
+                  ? "Ask anything — streaming response..."
+                  : "Ask me anything..."
+              }
               autoFocus
             />
-            <button className="chat-send-btn" type="submit">Send</button>
+            {streamingMode && streamingAbort ? (
+              <button className="chat-stop-btn" type="button" onClick={stopStreaming}>Stop</button>
+            ) : (
+              <button className="chat-send-btn" type="submit">Send</button>
+            )}
           </>
         )}
       </form>

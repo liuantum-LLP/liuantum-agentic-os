@@ -280,6 +280,52 @@ class ModelHub:
         log_external_action("text_generation_failed", result["status"], _safe_log_metadata(prompt, {"provider": result["provider"], "model": result.get("model"), "fallback_provider": result.get("fallback_provider"), "error": result.get("error"), "workspace_name": workspace_name}))
         return result
 
+    def stream_text(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        provider_name: str | None = None,
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        workspace_name: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        role: str | None = None,
+    ):
+        """Stream text generation as chunks.
+
+        Yields dicts with shape:
+        {"type": "token|metadata|warning|error|done", "content": "...", "provider": "...", "model": "...", "role": "...", "fallback_used": False}
+
+        Falls back to generate_text if provider doesn't support streaming.
+        """
+        provider = self.resolve_provider_for_task("text", provider_name)
+        provider_type = provider.get("provider_type") or provider["id"]
+        resolved_model = model or provider.get("default_model") or ""
+
+        yield {"type": "metadata", "content": "", "provider": provider["id"], "model": resolved_model, "role": role or "default", "fallback_used": False}
+
+        streaming_supported = provider_type in {"ollama", "openai", "openrouter", "groq", "lmstudio", "custom_openai_compatible"}
+
+        if not streaming_supported:
+            result = self._generate_text_once(provider, prompt, system_prompt, model, temperature, max_tokens)
+            if result["status"] == "completed":
+                yield {"type": "token", "content": result["text"], "provider": result["provider"], "model": result["model"], "role": role or "default", "fallback_used": False}
+            else:
+                yield {"type": "error", "content": result.get("error", "Generation failed"), "provider": provider["id"], "model": resolved_model, "role": role or "default", "fallback_used": False}
+            yield {"type": "done", "content": "", "provider": provider["id"], "model": resolved_model, "role": role or "default", "fallback_used": False}
+            return
+
+        if provider_type == "ollama":
+            yield from self._stream_ollama(provider, prompt, system_prompt, resolved_model, temperature, max_tokens, role)
+        elif provider_type in {"openai", "openrouter", "groq", "lmstudio", "custom_openai_compatible"}:
+            yield from self._stream_openai_compatible(provider, prompt, system_prompt, resolved_model, temperature, max_tokens, role)
+        else:
+            result = self._generate_text_once(provider, prompt, system_prompt, model, temperature, max_tokens)
+            if result["status"] == "completed":
+                yield {"type": "token", "content": result["text"], "provider": result["provider"], "model": result["model"], "role": role or "default", "fallback_used": False}
+            yield {"type": "done", "content": "", "provider": provider["id"], "model": resolved_model, "role": role or "default", "fallback_used": False}
+
     def generate_image(self, prompt: str, provider_name: str | None = None, **kwargs: Any) -> dict[str, Any]:
         from runtime.generation.image import ImageGenerationManager
 
@@ -720,6 +766,103 @@ class ModelHub:
             return {**base, "status": "provider_error", "error": _redact_error(exc)}
         except Exception as exc:
             return {**base, "status": "provider_error", "error": _redact_error(exc)}
+
+    def _stream_ollama(
+        self,
+        provider: dict[str, Any],
+        prompt: str,
+        system_prompt: str | None,
+        model: str,
+        temperature: float,
+        max_tokens: int | None,
+        role: str | None,
+    ):
+        """Stream from Ollama /api/generate endpoint."""
+        base_url = (provider.get("base_url") or "http://127.0.0.1:11434").rstrip("/")
+        model = model or "llama3.2"
+        payload: dict[str, Any] = {"model": model, "prompt": prompt, "stream": True, "options": {"temperature": temperature}}
+        if system_prompt:
+            payload["system"] = system_prompt
+        if max_tokens:
+            payload["options"]["num_predict"] = max_tokens
+        try:
+            request = urllib.request.Request(
+                f"{base_url}/api/generate",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"content-type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=120) as response:
+                for line in response:
+                    if not line.strip():
+                        continue
+                    try:
+                        chunk = json.loads(line.decode("utf-8"))
+                        token = chunk.get("response", "")
+                        if token:
+                            yield {"type": "token", "content": token, "provider": provider["id"], "model": model, "role": role or "default", "fallback_used": False}
+                        if chunk.get("done", False):
+                            break
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        continue
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            yield {"type": "error", "content": _redact_error(exc), "provider": provider["id"], "model": model, "role": role or "default", "fallback_used": False}
+        except Exception as exc:
+            yield {"type": "error", "content": _redact_error(exc), "provider": provider["id"], "model": model, "role": role or "default", "fallback_used": False}
+        yield {"type": "done", "content": "", "provider": provider["id"], "model": model, "role": role or "default", "fallback_used": False}
+
+    def _stream_openai_compatible(
+        self,
+        provider: dict[str, Any],
+        prompt: str,
+        system_prompt: str | None,
+        model: str,
+        temperature: float,
+        max_tokens: int | None,
+        role: str | None,
+    ):
+        """Stream from OpenAI-compatible /v1/chat/completions endpoint."""
+        provider_id = provider["id"]
+        base_url = (provider.get("base_url") or "").rstrip("/")
+        env_var = provider.get("api_key_env") or provider.get("env_var") or ""
+        key = _read_secret(env_var)
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        payload: dict[str, Any] = {"model": model, "messages": messages, "temperature": temperature, "stream": True}
+        if max_tokens:
+            payload["max_tokens"] = max_tokens
+        headers = {"content-type": "application/json"}
+        if key:
+            headers["authorization"] = f"Bearer {key}"
+        try:
+            request = urllib.request.Request(
+                f"{base_url}/chat/completions",
+                data=json.dumps(payload).encode("utf-8"),
+                headers=headers,
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=120) as response:
+                for line in response:
+                    line_str = line.decode("utf-8").strip()
+                    if not line_str or line_str == "data: [DONE]":
+                        continue
+                    if line_str.startswith("data: "):
+                        line_str = line_str[6:]
+                    try:
+                        chunk = json.loads(line_str)
+                        delta = ((chunk.get("choices") or [{}])[0].get("delta") or {})
+                        content = delta.get("content", "")
+                        if content:
+                            yield {"type": "token", "content": content, "provider": provider_id, "model": model, "role": role or "default", "fallback_used": False}
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        continue
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            yield {"type": "error", "content": _redact_error(exc), "provider": provider_id, "model": model, "role": role or "default", "fallback_used": False}
+        except Exception as exc:
+            yield {"type": "error", "content": _redact_error(exc), "provider": provider_id, "model": model, "role": role or "default", "fallback_used": False}
+        yield {"type": "done", "content": "", "provider": provider_id, "model": model, "role": role or "default", "fallback_used": False}
 
     def _can_reach(self, base_url: str) -> bool:
         if not base_url:

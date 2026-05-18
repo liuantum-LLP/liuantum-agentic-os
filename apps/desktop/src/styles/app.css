@@ -1181,3 +1181,19 @@ button, input { font: inherit; }
   font-size: 11px;
   color: var(--warn);
 }
+
+.chat-stop-btn {
+  background: var(--warn);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.chat-stop-btn:hover {
+  background: var(--warn-hover, #d97706);
+}

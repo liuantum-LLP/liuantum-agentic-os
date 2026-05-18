@@ -12,6 +12,8 @@ from runtime.content_creator import ContentCreator
 from runtime.db import insert_record, list_records
 from runtime.exports import export_agent_run_markdown
 from runtime.providers import ModelHub
+from runtime.model_roles import ModelRoleManager
+from runtime.model_router import get_model_for_role, route_task_to_role, resolve_role_for_chat
 from runtime.workflows.social_content import SocialContentWorkflow
 
 
@@ -47,19 +49,54 @@ class AgentRunner:
         workspace_name: str | None = None,
         rag_query: str | None = None,
         rag_limit: int | None = None,
+        model_role: str | None = None,
+        discussion_mode: bool = False,
+        discussion_roles: list[str] | None = None,
+        discussion_rounds: int | None = None,
+        stream: bool = False,
     ) -> dict[str, Any]:
         agent = AgentProfileManager().show(agent_slug)
         if not agent.get("enabled", True):
             raise ValueError(f"Agent is disabled: {agent_slug}")
+
+        resolved_role = model_role or agent.get("preferred_model_role") or self._infer_agent_role(agent_slug)
+        role_model_cfg = get_model_for_role(resolved_role, ModelRoleManager())
+
         if agent_slug == "content-creator-agent":
             result = self._run_content_creator(prompt)
         else:
             result = self._run_local_agent(agent_slug, prompt)
-        result["provider_routing"] = self._resolve_provider_routing(agent)
-        if self._should_use_rag(rag_enabled):
+
+        result["provider_routing"] = self._resolve_provider_routing(agent, resolved_role)
+        result["model_role_used"] = resolved_role
+        result["provider_used"] = role_model_cfg.get("provider", "")
+        result["model_used"] = role_model_cfg.get("model", "")
+        result["fallback_used"] = bool(role_model_cfg.get("fallback_from"))
+
+        if discussion_mode and agent.get("allow_discussion_mode", False):
+            from runtime.chat.discussion import run_discussion
+            roles = discussion_roles or agent.get("discussion_roles", []) or ["auto"]
+            rounds = discussion_rounds or agent.get("discussion_rounds", 2)
+            discussion_result = run_discussion(
+                user_message=prompt,
+                roles=roles if roles != ["auto"] else None,
+                rounds=rounds,
+                final_role=resolved_role,
+            )
+            result["discussion_mode_used"] = True
+            result["discussion_result"] = discussion_result
+            result["final_answer"] = discussion_result.get("final_answer", "")
+            result["warnings"] = discussion_result.get("warnings", [])
+        elif self._should_use_rag(rag_enabled):
             result = self._attach_rag_context(result, rag_query or prompt, workspace_name, rag_limit)
+
         if self._should_enhance(ai_enhancement):
-            result = self._enhance_with_ai(agent, prompt, result, provider_name, model)
+            result = self._enhance_with_ai(agent, prompt, result, provider_name, model, resolved_role)
+
+        if stream:
+            result["streaming_supported"] = True
+            result["stream_note"] = "Use /api/agents/{slug}/stream for SSE streaming"
+
         run = AgentRun(agent_slug=agent_slug, prompt=prompt, status="completed", result=result)
         row = insert_record("agent_runs", run.to_dict())
         row["output_path"] = export_agent_run_markdown(row["id"])
@@ -174,20 +211,53 @@ class AgentRunner:
             **output,
         }
 
-    def _resolve_provider_routing(self, agent: dict[str, Any]) -> dict[str, Any]:
+    def _resolve_provider_routing(self, agent: dict[str, Any], resolved_role: str | None = None) -> dict[str, Any]:
         preferences = agent.get("provider_preferences") or agent.get("provider_preferences_json") or {}
         hub = ModelHub()
-        text_provider = hub.resolve_provider_for_task("text", preferences.get("text_provider"))
+        role_manager = ModelRoleManager()
+
+        if resolved_role:
+            role_cfg = get_model_for_role(resolved_role, role_manager)
+            text_provider_id = role_cfg.get("provider", "")
+            text_model = role_cfg.get("model", "")
+        else:
+            text_provider = hub.resolve_provider_for_task("text", preferences.get("text_provider"))
+            text_provider_id = text_provider["id"]
+            text_model = preferences.get("text_model") or text_provider.get("default_model")
+
         image_provider = hub.resolve_provider_for_task("image", preferences.get("image_provider"))
         video_provider = hub.resolve_provider_for_task("video", preferences.get("video_provider"))
         return {
-            "text_provider": text_provider["id"],
-            "text_model": preferences.get("text_model") or text_provider.get("default_model"),
+            "text_provider": text_provider_id,
+            "text_model": text_model,
             "image_provider": image_provider["id"],
             "video_provider": video_provider["id"],
+            "model_role": resolved_role,
             "source": "agent_preferences" if preferences else "global_defaults",
             "note": "Local MVP output used provider routing metadata; no fake model completion was performed.",
         }
+
+    def _infer_agent_role(self, agent_slug: str) -> str:
+        """Infer the best model role for an agent based on its slug."""
+        role_map = {
+            "coding-agent": "coding",
+            "brand-strategist-agent": "planning",
+            "automation-builder-agent": "planning",
+            "email-assistant-agent": "thinking",
+            "social-media-manager-agent": "planning",
+            "video-creator-agent": "planning",
+            "image-creator-agent": "default",
+            "content-creator-agent": "planning",
+            "marketing-agent": "planning",
+            "tutor-agent": "thinking",
+            "business-analyst-agent": "thinking",
+            "sales-agent": "planning",
+            "customer-support-agent": "default",
+            "front-desk-management-agent": "default",
+            "personal-assistant-agent": "default",
+            "hr-agent": "default",
+        }
+        return role_map.get(agent_slug, "default")
 
     def _should_enhance(self, explicit: bool | None) -> bool:
         if explicit is not None:
@@ -230,15 +300,23 @@ class AgentRunner:
         local_output: dict[str, Any],
         provider_name: str | None,
         model: str | None,
+        resolved_role: str | None = None,
     ) -> dict[str, Any]:
         preferences = agent.get("provider_preferences") or agent.get("provider_preferences_json") or {}
+        role_manager = ModelRoleManager()
+
+        if resolved_role:
+            role_cfg = get_model_for_role(resolved_role, role_manager)
+            provider_name = provider_name or role_cfg.get("provider")
+            model = model or role_cfg.get("model")
+
         provider_name = provider_name or preferences.get("text_provider")
         model = model or preferences.get("text_model")
         hub = ModelHub()
         log_external_action(
             "agent_ai_enhancement_started",
             "started",
-            {"agent_slug": agent["slug"], "provider": provider_name or "default", "model": model or "default", "prompt_summary": prompt[:120]},
+            {"agent_slug": agent["slug"], "provider": provider_name or "default", "model": model or "default", "prompt_summary": prompt[:120], "model_role": resolved_role},
         )
         enhancement_prompt = (
             "Refine the following deterministic local agent output while preserving safety, structure, and draft-only behavior.\n\n"
@@ -249,7 +327,7 @@ class AgentRunner:
             system_prompt="You enhance Liuant Agentic OS local draft outputs. Keep the result concise, useful, and approval-aware.",
             provider_name=provider_name,
             model=model,
-            metadata={"agent_slug": agent["slug"], "feature": "agent_ai_enhancement"},
+            metadata={"agent_slug": agent["slug"], "feature": "agent_ai_enhancement", "model_role": resolved_role},
         )
         enhanced = {
             **local_output,
@@ -259,6 +337,7 @@ class AgentRunner:
                 "status": ai_result["status"],
                 "provider": ai_result["provider"],
                 "model": ai_result["model"],
+                "model_role": resolved_role,
                 "fallback_used": ai_result.get("fallback_used", False),
                 "fallback_provider": ai_result.get("fallback_provider"),
                 "error": ai_result.get("error"),
@@ -266,7 +345,7 @@ class AgentRunner:
         }
         if ai_result["status"] == "completed":
             enhanced["ai_enhanced_output"] = ai_result["text"]
-            log_external_action("agent_ai_enhancement_completed", "completed", {"agent_slug": agent["slug"], "provider": ai_result["provider"], "model": ai_result["model"], "fallback_used": ai_result.get("fallback_used", False)})
+            log_external_action("agent_ai_enhancement_completed", "completed", {"agent_slug": agent["slug"], "provider": ai_result["provider"], "model": ai_result["model"], "fallback_used": ai_result.get("fallback_used", False), "model_role": resolved_role})
         else:
             log_external_action("agent_ai_enhancement_failed", ai_result["status"], {"agent_slug": agent["slug"], "provider": ai_result["provider"], "model": ai_result["model"], "error": ai_result.get("error")})
         return enhanced

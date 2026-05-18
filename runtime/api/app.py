@@ -5,6 +5,7 @@ Run with: uvicorn runtime.api.app:app --reload
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 try:
@@ -209,6 +210,89 @@ def chat_discussion(payload: dict[str, Any]) -> dict[str, Any]:
     final_role = payload.get("final_role", "thinking")
     from runtime.chat.discussion import run_discussion
     return run_discussion(user_message=message, roles=roles, rounds=rounds, final_role=final_role)
+
+
+@app.post("/api/chat/stream")
+def chat_stream(payload: dict[str, Any]):
+    """Stream chat response using Server-Sent Events."""
+    from fastapi.responses import StreamingResponse
+    message = payload.get("message", "")
+    if not message:
+        return {"status": "error", "message": "No message provided."}
+    provider_name = payload.get("provider")
+    model = payload.get("model")
+    role = payload.get("role")
+
+    def event_stream():
+        hub = ModelHub()
+        for chunk in hub.stream_text(
+            prompt=message,
+            provider_name=provider_name,
+            model=model,
+            role=role,
+        ):
+            yield f"event: {chunk['type']}\ndata: {json.dumps(chunk)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.post("/api/models/stream")
+def models_stream(payload: dict[str, Any]):
+    """Stream text generation from a specific provider."""
+    from fastapi.responses import StreamingResponse
+    prompt = payload.get("prompt", "")
+    if not prompt:
+        return {"status": "error", "message": "No prompt provided."}
+    provider_name = payload.get("provider")
+    model = payload.get("model")
+    role = payload.get("role", "default")
+
+    def event_stream():
+        hub = ModelHub()
+        for chunk in hub.stream_text(
+            prompt=prompt,
+            provider_name=provider_name,
+            model=model,
+            role=role,
+        ):
+            yield f"event: {chunk['type']}\ndata: {json.dumps(chunk)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.post("/api/agents/{agent_slug}/stream")
+def agent_stream(agent_slug: str, payload: dict[str, Any]):
+    """Stream agent run response."""
+    from fastapi.responses import StreamingResponse
+    from runtime.agents import AgentRunner
+    from runtime.model_router import get_model_for_role
+    from runtime.model_roles import ModelRoleManager
+
+    prompt = payload.get("prompt", "")
+    if not prompt:
+        return {"status": "error", "message": "No prompt provided."}
+    model_role = payload.get("model_role")
+
+    rm = ModelRoleManager()
+    role = model_role or "default"
+    model_cfg = get_model_for_role(role, rm)
+
+    def event_stream():
+        hub = ModelHub()
+        yield f"event: metadata\ndata: {json.dumps({'agent_slug': agent_slug, 'role': role, 'provider': model_cfg.get('provider', ''), 'model': model_cfg.get('model', '')})}\n\n"
+        if model_cfg["configured"]:
+            for chunk in hub.stream_text(
+                prompt=prompt,
+                provider_name=model_cfg["provider"],
+                model=model_cfg["model"],
+                role=role,
+            ):
+                yield f"event: {chunk['type']}\ndata: {json.dumps(chunk)}\n\n"
+        else:
+            yield f"event: warning\ndata: {json.dumps({'content': f'Role {role} not configured. Configure in Settings > Model Roles.'})}\n\n"
+            yield f"event: done\ndata: {json.dumps({'status': 'not_configured'})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @app.get("/api/models/roles")

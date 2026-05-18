@@ -380,24 +380,68 @@ def dispatch(args: argparse.Namespace) -> Any:
         if command == "run" and len(rest) >= 2:
             agent_slug = rest[0]
             prompt, options = parse_cli_options(rest[1:])
-            return runner.run(agent_slug, prompt, options.get("ai") == "true", options.get("provider"), options.get("model"), options.get("rag") == "true", options.get("workspace"), options.get("rag_query"), parse_int(options.get("rag_limit"), 0) or None)
+            return runner.run(
+                agent_slug,
+                prompt,
+                ai_enhancement=options.get("ai") == "true",
+                provider_name=options.get("provider"),
+                model=options.get("model"),
+                rag_enabled=options.get("rag") == "true",
+                workspace_name=options.get("workspace"),
+                rag_query=options.get("rag_query"),
+                rag_limit=parse_int(options.get("rag_limit"), 0) or None,
+                model_role=options.get("model_role"),
+                discussion_mode=options.get("discussion") == "true",
+                discussion_roles=[r.strip() for r in options.get("roles", "").split(",")] if options.get("roles") else None,
+                discussion_rounds=parse_int(options.get("rounds"), 2),
+                stream=options.get("stream") == "true",
+            )
         if command == "runs":
             return runner.list_runs()
         if command == "export" and rest:
             return {"output_path": export_agent_run_markdown(rest[0])}
-        return {"commands": ["list", "show <slug>", "create <name>", "update <slug> <instructions>", "disable <slug>", "enable <slug>", "run <agent_slug> <prompt>", "runs", "export <run_id>"]}
+        return {"commands": ["list", "show <slug>", "create <name>", "update <slug> <instructions>", "disable <slug>", "enable <slug>", "run <agent_slug> <prompt>", "run <agent_slug> <prompt> --model-role coding", "run <agent_slug> <prompt> --discussion", "run <agent_slug> <prompt> --stream", "runs", "export <run_id>"]}
     if args.area == "chat":
         from runtime.chat.intent_router import route_chat_message
         from runtime.model_router import route_task_to_role
         message, options = parse_cli_options(rest)
         if not message:
-            return {"commands": ['chat "message"', 'chat --model-role coding "Fix this error"', 'chat --discussion "Plan Liuant launch"']}
+            return {"commands": ['chat "message"', 'chat --model-role coding "Fix this error"', 'chat --discussion "Plan Liuant launch"', 'chat --stream "Explain Liuant"']}
         if options.get("discussion") == "true":
             from runtime.chat.discussion import run_discussion
             roles_str = options.get("roles", "")
             roles = [r.strip() for r in roles_str.split(",")] if roles_str else None
             rounds = parse_int(options.get("rounds"), 2)
             return run_discussion(user_message=message, roles=roles, rounds=rounds)
+        if options.get("stream") == "true":
+            role = options.get("model_role", "default")
+            if options.get("model_role"):
+                from runtime.model_roles import ModelRoleManager
+                from runtime.model_router import get_model_for_role
+                rm = ModelRoleManager()
+                model_cfg = get_model_for_role(role, rm)
+                if not model_cfg["configured"]:
+                    return {"status": "error", "message": f"Role '{role}' not configured."}
+                provider_name = model_cfg["provider"]
+                model = model_cfg["model"]
+            else:
+                provider_name = None
+                model = None
+            hub = ModelHub()
+            full_text = []
+            for chunk in hub.stream_text(prompt=message, provider_name=provider_name, model=model, role=role):
+                if chunk["type"] == "token":
+                    full_text.append(chunk["content"])
+                    print(chunk["content"], end="", flush=True)
+                elif chunk["type"] == "error":
+                    print(f"\nError: {chunk['content']}", flush=True)
+                elif chunk["type"] == "metadata":
+                    pass
+                elif chunk["type"] == "done":
+                    break
+            if full_text:
+                print(f"\n\n---\nRole: {role} | Provider: {chunk.get('provider', '')} | Model: {chunk.get('model', '')}", flush=True)
+            return {"status": "completed", "text": "".join(full_text), "role": role, "provider": chunk.get("provider", ""), "model": chunk.get("model", "")}
         if options.get("model_role"):
             from runtime.model_roles import ModelRoleManager
             from runtime.model_router import get_model_for_role
@@ -501,6 +545,26 @@ def dispatch(args: argparse.Namespace) -> Any:
             return hub.test_provider(rest[0])
         if command == "generate":
             prompt, options = parse_cli_options(rest)
+            if options.get("stream") == "true":
+                full_text = []
+                role = options.get("role", "default")
+                for chunk in hub.stream_text(
+                    prompt=prompt,
+                    system_prompt=options.get("system_prompt"),
+                    provider_name=options.get("provider"),
+                    model=options.get("model"),
+                    role=role,
+                ):
+                    if chunk["type"] == "token":
+                        full_text.append(chunk["content"])
+                        print(chunk["content"], end="", flush=True)
+                    elif chunk["type"] == "error":
+                        print(f"\nError: {chunk['content']}", flush=True)
+                    elif chunk["type"] == "done":
+                        break
+                if full_text:
+                    print(f"\n\n---\nProvider: {chunk.get('provider', '')} | Model: {chunk.get('model', '')}", flush=True)
+                return {"status": "completed", "text": "".join(full_text), "provider": chunk.get("provider", ""), "model": chunk.get("model", "")}
             return hub.generate_text(
                 prompt=prompt,
                 system_prompt=options.get("system_prompt"),
@@ -509,7 +573,7 @@ def dispatch(args: argparse.Namespace) -> Any:
                 temperature=float(options.get("temperature", "0.7")),
                 max_tokens=parse_int(options.get("max_tokens"), 0) or None,
             )
-        return {"commands": ["providers", "test <provider_name>", "generate <prompt> --provider <provider> --model <model>"]}
+        return {"commands": ["providers", "test <provider_name>", "generate <prompt> --provider <provider> --model <model>", "generate <prompt> --stream"]}
     if args.area == "embedding":
         hub = ModelHub()
         if command == "test":
