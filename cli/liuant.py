@@ -404,7 +404,7 @@ def dispatch(args: argparse.Namespace) -> Any:
     if args.area == "chat":
         from runtime.chat.intent_router import route_chat_message
         from runtime.model_router import route_task_to_role
-        message, options = parse_cli_options(rest)
+        message, options = parse_cli_options([command] + rest if command else rest)
         if not message:
             return {"commands": ['chat "message"', 'chat --model-role coding "Fix this error"', 'chat --discussion "Plan Liuant launch"', 'chat --stream "Explain Liuant"']}
         if options.get("discussion") == "true":
