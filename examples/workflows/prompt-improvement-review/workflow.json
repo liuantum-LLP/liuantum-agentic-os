@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "workflow_id": "prompt-improvement-review",
+  "name": "Prompt Improvement Review",
+  "description": "Review a prompt, improve clarity, and produce safety notes",
+  "pack_id": "official-workflows",
+  "version": "2.6.0",
+  "steps": [
+    {
+      "step_id": "analyze_prompt",
+      "skill_id": "prompt-review-skill",
+      "command": "analyze",
+      "input_schema": {
+        "prompt": {
+          "type": "string",
+          "description": "The prompt to analyze"
+        }
+      },
+      "input_from": {
+        "prompt": "prompt_text"
+      },
+      "output_key": "analysis"
+    },
+    {
+      "step_id": "improve_prompt",
+      "skill_id": "prompt-review-skill",
+      "command": "improve",
+      "input_schema": {
+        "original": {
+          "type": "string",
+          "description": "Original prompt text"
+        }
+      },
+      "input_from": {
+        "original": "analysis.original_prompt"
+      },
+      "output_key": "improved_prompt",
+      "defaults": {
+        "original": "No prompt provided"
+      }
+    },
+    {
+      "step_id": "safety_check",
+      "skill_id": "prompt-review-skill",
+      "command": "safety",
+      "input_schema": {
+        "prompt": {
+          "type": "string",
+          "description": "Prompt to check for safety"
+        }
+      },
+      "input_from": {
+        "prompt": "improved_prompt.text"
+      },
+      "output_key": "safety_notes"
+    }
+  ],
+  "required_permissions": [],
+  "approval_required": false,
+  "tags": ["prompt", "improvement", "safety"],
+  "risk_level": "low"
+}

@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "workflow_id": "analytics-pack-checkup",
+  "name": "Analytics Pack Checkup",
+  "description": "Inspect local analytics pack, lint it, and produce a safe checklist",
+  "pack_id": "official-workflows",
+  "version": "2.6.0",
+  "steps": [
+    {
+      "step_id": "inspect_pack",
+      "skill_id": "pack-inspection-skill",
+      "command": "inspect",
+      "input_schema": {
+        "pack_path": {
+          "type": "string",
+          "description": "Path to the pack to inspect"
+        }
+      },
+      "input_from": {
+        "pack_path": "pack_path"
+      },
+      "output_key": "inspection"
+    },
+    {
+      "step_id": "lint_pack",
+      "skill_id": "pack-lint-skill",
+      "command": "lint",
+      "input_schema": {
+        "pack_path": {
+          "type": "string",
+          "description": "Path to the pack to lint"
+        }
+      },
+      "input_from": {
+        "pack_path": "inspection.pack_path"
+      },
+      "output_key": "lint_result"
+    },
+    {
+      "step_id": "generate_checklist",
+      "skill_id": "prompt-review-skill",
+      "command": "review",
+      "input_schema": {
+        "text": {
+          "type": "string",
+          "description": "Text to review"
+        }
+      },
+      "input_from": {
+        "text": "lint_result.summary"
+      },
+      "output_key": "checklist"
+    }
+  ],
+  "required_permissions": [
+    "filesystem.read"
+  ],
+  "approval_required": false,
+  "tags": ["analytics", "inspection", "linting"],
+  "risk_level": "low"
+}

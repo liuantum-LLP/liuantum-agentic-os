@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "workflow_id": "starter-greeting-workflow",
+  "name": "Starter Greeting Workflow",
+  "description": "Run hello-skill and format the output as a simple workflow result",
+  "pack_id": "official-workflows",
+  "version": "2.6.0",
+  "steps": [
+    {
+      "step_id": "hello",
+      "skill_id": "hello-skill",
+      "command": "run",
+      "input_schema": {
+        "name": {
+          "type": "string",
+          "description": "Name to greet"
+        }
+      },
+      "input_from": {
+        "name": "user_name"
+      },
+      "output_key": "greeting"
+    }
+  ],
+  "required_permissions": [],
+  "approval_required": false,
+  "tags": ["starter", "greeting", "basic"],
+  "risk_level": "low"
+}

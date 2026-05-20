@@ -1,0 +1,21 @@
+{
+  "csv_summary": {
+    "row_count": 100,
+    "column_count": 5,
+    "columns": ["id", "name", "value", "date", "status"],
+    "missing_values": {
+      "value": 3,
+      "status": 0
+    },
+    "summary_text": "CSV file analyzed: 100 rows, 5 columns. Key statistics: mean value = 45.2, max = 99, min = 1. Missing values found in 'value' column (3 rows)."
+  },
+  "review_result": {
+    "clarity_score": 0.95,
+    "completeness_score": 0.90,
+    "suggestions": [
+      "Consider adding data quality metrics",
+      "Include visual summary if possible"
+    ],
+    "review_text": "Summary is clear and comprehensive. Good coverage of basic statistics."
+  }
+}

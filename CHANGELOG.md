@@ -1,5 +1,150 @@
 # Changelog
 
+## [v3.1.0] - 2026-05-20
+### Added
+- Browser & Desktop Automation layer with approval gating.
+- Voice wake assistant foundation (simulation-first).
+- Comprehensive multi-provider API support (Bedrock, OpenRouter, Gemini, Ollama, LM Studio, etc.).
+- Robust documentation overhaul focusing on local-first safety and known limitations.
+
+## v2.6.0
+
+- **Official workflow examples**: 4 new workflows — csv-analysis-report, prompt-improvement-review, starter-greeting-workflow, analytics-pack-checkup. All include workflow.json, README.md, sample_input.json, expected_output.json.
+- **Workflow discovery**: `list_workflows()` includes examples/workflows/ directory. `discover_workflows()` finds workflows from specified paths or defaults.
+- **Workflow registry**: `_get_workflow_by_id()` checks examples/workflows/ in addition to registry and skill-packs. `validate_workflow()` accepts workflow_id parameter.
+- **CLI commands**: `liuant skills workflow discover [--paths path1,path2]`, `liuant skills workflow validate --workflow-id <id>`.
+- **API endpoints**: `GET /api/skills/workflows`, `POST /api/skills/workflows/discover`, `POST /api/skills/workflows/validate` (workflow_id support).
+- **Desktop workflow UI**: Workflow Templates section with cards showing name, ID, description, source, required skills, permissions, risk level, status, latest run.
+- **Workflow preview panel**: Shows status, steps, skill installed/enabled state, permissions required, input source, output key, warnings, blocked reason. No execution.
+- **Workflow permission review panel**: Shows permission, required by skills, risk level, approved, missing approval. Approve button requires confirmation.
+- **Dry-run and run confirmation**: Dry-run shows execution plan without executing skills. Run requires confirmation dialog with workflow ID, permissions, external actions status.
+- **Workflow audit and run history**: Shows latest runs, workflow ID, run ID, status, duration, step count, completed steps, failed step, warnings, timestamp. No secrets shown.
+- **URL staging confirmation flow**: URL input, preview URL, staged_id, validation result, pack metadata, trust status, risk summary, dependencies, import staged, install staged.
+- **Lint fix suggestions UI**: Shows lint score, grade, issues, recommendations, safe fix suggestions. Apply safe fixes requires confirmation.
+- **Recommendation ranking UI**: Shows recommended pack/skill, score, reason, factor breakdown, source, installed status, risk summary, trust state.
+- **Chat-first workflow bridge**: Workflow preview, permissions, audit, dry-run, rerun plan intents. No auto-run from chat.
+- **Safety**: No marketplace server, no cloud sync, no auto-install, no auto-enable, no auto-run. External actions remain approval-gated.
+- **789 tests pass**, TypeScript clean, frontend builds clean.
+- **Version 2.6.0** across all files.
+
+## v2.5.0
+
+- **Workflow run preview**: Step-by-step readiness check without executing any skills. Reports missing skills, disabled skills, and permission status.
+- **Workflow permission summary**: Aggregates permissions across all workflow steps, checks approval state, identifies critical permissions.
+- **Output chaining**: Dot-notation nested mapping between workflow steps (`csv_summary.summary_text`). Defaults for parameters not in `input_from`.
+- **Workflow audit logs**: Metadata-only run/step history with secret redaction. Never stores secrets, raw prompts, file contents, or tokens.
+- **Run history**: List, get, and export workflow runs as JSON or markdown. Filter by workflow ID.
+- **Dry-run improvements**: Execution plan shows input dependencies and chaining resolution (`<from:key>`, `<nested:key>`, `<missing:key>`).
+- **Failure recovery**: Failed step records `recovery_suggestion`. `preview_rerun_from_step` returns safe preview of what would happen.
+- **Lint auto-fix suggestions**: Safe templates only — creates missing `README.md`, `sample_input.json`, `expected_output.json`, empty `changelog`/`tags`. Never modifies code or permissions.
+- **Staged URL import**: `preview_url_import` returns `staged_id` for separate import and install confirmation steps. HTTPS-only, 25 MB limit.
+- **Recommendation ranking**: Factor breakdown (`query_match`, `skill_gap_fill`, `workflow_match`, `low_risk_bonus`, `starter_priority`, `verified_bonus`). No telemetry.
+- **Chat-first workflow intents**: 6 new intent patterns — workflow preview, permissions, audit, dry-run, rerun plan, run.
+- **789 tests pass**, TypeScript clean, frontend builds clean.
+- **Version 2.5.0** across all files.
+
+## v2.0.0
+
+- **Plugin/Skill Ecosystem Foundation**: Local-first skill system with manifest-based validation, permission gating, and approval-required execution.
+- **Skill Manifest Format**: `skill.json` with required fields (id, name, version, description, author, license, entrypoint, runtime, category), permissions, commands, triggers, UI config, tags.
+- **Permission Model**: 13 permission types across 4 risk levels (low, medium, high, critical). Critical permissions (secrets.read, tools.shell, network.http, tools.email_draft, tools.social_draft) require explicit approval.
+- **Skill Registry**: Install, uninstall, enable, disable, validate, list skills. Installed skills disabled by default. Duplicate ID rejection unless --upgrade.
+- **Skill Validator**: Validates manifest fields, slug-safe IDs, semver versions, known permissions, entrypoint existence, README presence, no secret-like values, no suspicious install scripts.
+- **Skill Execution Sandbox**: Restricted context with permission checking, path resolution limited to workspace/skill directories, no direct secret access, approval-gated external actions.
+- **Starter Skills**: hello-skill (no permissions), csv-summary-skill (filesystem.read, workspace.read), prompt-review-skill (models.generate).
+- **CLI Expanded**: `skills list|installed|validate|install|enable|disable|uninstall|status|permissions|approve-permissions|run|templates`.
+- **API Expanded**: `/api/skills`, `/api/skills/{id}`, `/api/skills/validate`, `/api/skills/install`, `/api/skills/{id}/enable|disable|uninstall|permissions|approve-permissions|run`, `/api/skills/templates`.
+- **Settings UI — Skills Section**: Installed skills list with risk badges, validation status, enable/disable/run/uninstall buttons, install path input, CLI commands reference.
+- **Safety**: Skills disabled by default, critical permissions require approval, no secret access by default, filesystem restricted to workspace/skill dirs, no external actions without approval.
+- **654 tests passing**, TypeScript clean, frontend builds clean.
+- **Version 2.0.0** across all files.
+
+## v1.9.0
+
+- **Usage dashboard UI — Webhook Delivery History**: Table showing event type, workspace, status, status code, retry count, URL hash, payload hash, test mode, delivered at. Buttons for send test, retry failed, refresh. Never shows full URL or payload body.
+- **Usage dashboard UI — HMAC Status**: Card showing HMAC enabled status, secret configured status, signature/timestamp header names. Buttons for signature test, rotate secret. Secret never displayed.
+- **Usage dashboard UI — Cleanup Scheduler**: Card showing enabled status, schedule, cleanup day/time, last run, next run, export-before-cleanup. Buttons for dry run, run now, enable, disable. Disabled by default, confirmation required for destructive actions.
+- **Usage dashboard UI — Export-Before-Cleanup Panel**: Shows records to delete, oldest/newest dates, export path, irreversible deletion warning. Visually dangerous confirm button. Current-day records protected.
+- **Usage dashboard UI — Per-Round Discussion Cost Breakdown**: Shows latest discussion ID, total cost, total tokens, per-round breakdown with phase (initial/review/final), role-level costs, provider/model, fallback warnings.
+- **Local webhook test server**: Integration tests use local mock HTTP server to test real HTTP delivery, HMAC verification, retry logic (429/500 retry, 400 no retry), delivery history hash storage.
+- **HTTP localhost exception for tests**: `http://127.0.0.1` and `http://localhost` URLs allowed in test mode only. Never allowed in production. Controlled by `LIUANT_WEBHOOK_TEST_ALLOW_HTTP_LOCALHOST` env flag.
+- **Cleanup scheduler foundation**: `check_and_run_due_cleanup()` architecture ready, next-run calculation, disabled-by-default enforcement, manual run-now only.
+- **API expanded**: `/api/usage/webhook/signature-test`, `/api/usage/webhook/rotate-secret`.
+- **632 tests passing**, TypeScript clean, frontend builds clean.
+- **Version 1.9.0** across all files.
+
+## v1.8.0
+
+- **Real HTTP webhook delivery**: POST JSON payload with configurable timeout, retry with exponential backoff (max retries configurable, retry only for timeout/429/5xx, no retry for 4xx except 429).
+- **HMAC signature verification**: HMAC-SHA256(secret, timestamp + "." + raw_json_body) with X-Liuant-Signature and X-Liuant-Timestamp headers. Secret never logged or exposed.
+- **Webhook delivery log**: `webhook_deliveries` table stores url_hash and payload_hash only, never full URL or payload. Records status, status_code, retry_count, redacted_error, timestamps.
+- **Per-round discussion cost breakdown**: `discussion_cost_rounds` table tracks discussion_id, round_number, phase (initial/review/final), role, provider, model, tokens, cost, fallback_used.
+- **Cleanup scheduler**: Local scheduler disabled by default, weekly schedule (Sunday 03:00 UTC), export-before-cleanup enabled by default, confirmation required to enable, never deletes current-day records.
+- **Export-before-cleanup warnings**: Dry-run shows records to delete, oldest/newest dates, export path, irreversible deletion warning.
+- **CLI expanded**: `usage webhook send-test`, `delivery-history`, `retry-failed --confirm true`, `set-secret --confirm true`, `rotate-secret --confirm true`, `signature-test`. `usage discussion-costs --latest --rounds`, `--discussion-id <id>`. `usage cleanup-scheduler status|enable|disable|run-now`. `usage cleanup --dry-run --show-export-plan`, `--export-before-cleanup`.
+- **API expanded**: `/api/usage/webhook/send-test`, `/delivery-history`, `/retry-failed`. `/api/usage/discussion-costs/{discussion_id}`. `/api/usage/cleanup-scheduler/status|enable|disable|run-now`.
+- **Safety**: Webhooks disabled by default, HTTPS required, HMAC secret never printed, delivery log stores hashes only, cleanup requires confirmation, scheduler disabled by default, export-before-cleanup works, external actions approval-gated.
+- **637 tests passing**, TypeScript clean, frontend builds clean.
+- **Version 1.8.0** across all files.
+
+## v1.7.0
+
+- **Webhook alert delivery**: Approval-gated, disabled by default, test mode only. HTTPS URL validation, safe payloads with no secrets/prompts/raw errors.
+- **Provider latency percentiles**: p50, p95, p99 latency tracking with fastest/slowest call metrics.
+- **Discussion cost-per-role breakdown**: Track cost/tokens per role, provider, model during Discussion Mode.
+- **Usage retention policies**: Configurable retention days (default 90), dry-run cleanup, confirmation-required deletion, never deletes current-day records.
+- **CLI expanded**: `usage webhook status|set-url|test|enable|disable`, `usage discussion-costs [--latest]`, `usage retention`, `usage retention-set --days 90`, `usage cleanup [--dry-run] [--confirm true]`.
+- **API expanded**: `/api/usage/webhook/*`, `/api/usage/discussion-costs`, `/api/usage/discussion-costs/latest`, `/api/usage/retention`, `/api/usage/cleanup`.
+- **Safety**: Webhooks disabled by default, require confirmation, test mode enforced, payloads redacted, cleanup requires confirmation, retention preserves today's records.
+- **620 tests passing**, TypeScript clean, frontend builds clean.
+- **Version 1.7.0** across all files.
+
+## v1.6.0
+
+- **Auto-tracked provider health**: Every provider call now automatically records success/error/timeout/rate-limit status.
+- **Provider latency tracking**: Tracks latency_ms per call, rolling average, slow call count, p95 estimate.
+- **Per-workspace usage tracking**: Usage events now include workspace_name; summary/export/trends support workspace filtering.
+- **Usage history and trends**: Daily trends (7/30 days), monthly trends, provider/role trends.
+- **Real-time cost updates during discussion streaming**: Cumulative usage updates emitted during streaming, final usage recorded after completion.
+- **Budget alert history**: Alerts stored with timestamp, level, message, workspace; dismissible via API/CLI.
+- **Webhook alerts preparation**: Architecture ready for future webhook alerts (disabled by default, approval-gated).
+- **CLI expanded**: `usage summary --workspace current`, `usage trends --days 7|30`, `usage trends --monthly`, `usage alerts --history`, `usage export --workspace current`.
+- **API expanded**: Workspace query params on usage endpoints, `/api/usage/trends`, `/api/usage/alerts/history`, `/api/usage/alerts/{id}/dismiss`.
+- **Safety**: Provider errors redacted, no prompts stored, no API keys logged, local providers exempt from budget blocking.
+- **600 tests passing**, TypeScript clean, frontend builds clean.
+- **Version 1.6.0** across all files.
+
+## v1.5.0
+
+- **Usage budgeting**: Daily/monthly cost limits with 70%/90%/100% alert thresholds.
+- **Budget blocking**: Optional cloud provider call blocking when budget exceeded (disabled by default).
+- **Local provider exemption**: Ollama/LM Studio never blocked by cloud budget limits.
+- **Usage export**: CSV, JSON, and Markdown export to workspace/outputs/usage/.
+- **Cost anomaly detection**: Detects cost spikes, discussion call surges, fallback cloud usage, repeated errors, high token usage.
+- **Provider health tracking**: Track last success, last error, error/timeout/rate-limit counts, degraded status.
+- **Provider health API**: GET/POST endpoints for health status, error recording, rate limit tracking.
+- **Settings UI updated**: Usage & Costs section with budget cards, alert display, usage summary grid, export buttons.
+- **CLI expanded**: `usage budget`, `budget-set`, `budget-reset`, `alerts`, `export`, `anomalies`, `models provider-health`.
+- **Safety**: No secrets in exports, errors redacted, costs always estimated unless exact usage returned.
+- **580 tests passing**, TypeScript clean, frontend builds clean.
+- **Version 1.5.0** across all files.
+
+## v1.4.0
+
+- **Discussion Mode streaming**: `stream_discussion()` engine yields structured SSE events for real-time discussion display.
+- **API endpoint**: `POST /api/chat/discussion-stream` returns `text/event-stream` with role cards, progressive tokens, and usage updates.
+- **Usage & cost tracking**: `UsageTracker` with configurable pricing table for cost estimation across all providers.
+- **Usage APIs**: `/api/usage/summary`, `/today`, `/by-provider`, `/by-role`, `/reset` endpoints added.
+- **CLI commands**: `./liuant usage summary|today|by-provider|by-role|reset --confirm true` added.
+- **CLI discussion streaming**: `./liuant chat --discussion --stream "message"` for streaming discussion mode.
+- **Chat UI updated**: Role cards showing provider/model/status per contribution, usage/cost panel, stop button, "Models discussing (streaming)..." loading state.
+- **Safety**: No hidden reasoning streamed, secrets redacted, errors redacted, no token logging.
+- **Local providers**: ollama, lmstudio show zero cloud cost.
+- **Cost estimation**: Marked `estimated=true` unless exact provider usage returned.
+- **Database schema**: `usage_events` table added for local usage tracking.
+- **562 tests passing**, TypeScript clean, frontend builds clean.
+- **Version 1.4.0** across all files.
+
 ## v1.0.2
 
 - **Python package discovery fixed**: Explicit `[tool.setuptools.packages.find]` with `runtime*`, `cli*`, `sidecar*` — no more flat-layout pip install errors.

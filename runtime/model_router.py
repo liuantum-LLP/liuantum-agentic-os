@@ -130,11 +130,11 @@ def resolve_role_for_chat(role: str | None, role_manager: Any | None = None, mod
                 "message": f"Provider '{provider_name}' is disabled. Enable it in Settings.",
             }
         provider_status = provider_info.get("status", "")
-        if provider_status in {"missing_key", "placeholder"}:
+        if provider_status in {"missing_key", "placeholder", "needs_provider_setup"}:
             return {
                 **model_cfg,
                 "status": "provider_not_ready",
-                "message": f"Provider '{provider_name}' is not ready ({provider_status}). Configure API key in Settings.",
+                "message": f"Provider '{provider_name}' is not ready ({provider_status}). Configure API key or credentials in Settings.",
             }
         return {
             **model_cfg,

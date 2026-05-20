@@ -1,0 +1,10 @@
+{
+  "README.md": "4eb4a2b8a403e66b0cce88bbd76ad14ca3803604605ad98a62c1e8473b0cff1e",
+  "skill-pack.json": "766778d303ba72b24c278397d6b8de1e9e09719adb1b832aec3455195117e641",
+  "skills/csv-summary-skill/README.md": "f7e4e96e4f28f16ae708c31bcc6477739fd006a80338d6f7459bfb15df87d569",
+  "skills/csv-summary-skill/skill.json": "e70b721bb969d9cffda2fe32a1dadba460bdb940e644e64eadc9538cbc7fe75b",
+  "skills/csv-summary-skill/skill.py": "7e9df07d628265e9bc84359761fb9e0b583beb3136cab36e6fe90022d3a903b1",
+  "skills/prompt-review-skill/README.md": "205b487a271d7696a76fa6d4babde26f9e22d3f8aca348316c1b001533be9014",
+  "skills/prompt-review-skill/skill.json": "b25a98191b083f9eaeaafdf8337f71ab1d3ccf001d58be14039a0e4234d3831b",
+  "skills/prompt-review-skill/skill.py": "c84955dea8d32a1c599d16704238a15a13b6d7edfa65e9ba5e50c02580ec98d8"
+}

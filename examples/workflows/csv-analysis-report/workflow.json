@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "workflow_id": "csv-analysis-report",
+  "name": "CSV Analysis Report",
+  "description": "Read a CSV, summarize rows/columns/missing values, then generate a report review",
+  "pack_id": "official-workflows",
+  "version": "2.6.0",
+  "steps": [
+    {
+      "step_id": "read_csv",
+      "skill_id": "csv-summary-skill",
+      "command": "summarize",
+      "input_schema": {
+        "csv_path": {
+          "type": "string",
+          "description": "Path to the CSV file to analyze"
+        }
+      },
+      "input_from": {
+        "csv_path": "csv_path"
+      },
+      "output_key": "csv_summary"
+    },
+    {
+      "step_id": "review_summary",
+      "skill_id": "prompt-review-skill",
+      "command": "review",
+      "input_schema": {
+        "text": {
+          "type": "string",
+          "description": "Text to review"
+        }
+      },
+      "input_from": {
+        "text": "csv_summary.summary_text"
+      },
+      "output_key": "review_result",
+      "defaults": {
+        "text": "No summary available"
+      }
+    }
+  ],
+  "required_permissions": [
+    "filesystem.read"
+  ],
+  "approval_required": false,
+  "tags": ["data", "analysis", "reporting"],
+  "risk_level": "low"
+}

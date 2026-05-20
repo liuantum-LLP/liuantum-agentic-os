@@ -1,0 +1,39 @@
+{
+  "analysis": {
+    "original_prompt": "Write a tweet about AI",
+    "clarity_score": 0.6,
+    "specificity_score": 0.4,
+    "structure_score": 0.7,
+    "issues": [
+      "Too brief - lacks context",
+      "No target audience specified",
+      "No tone specified"
+    ],
+    "recommendations": [
+      "Specify the target audience",
+      "Define the desired tone",
+      "Add context about AI aspect"
+    ]
+  },
+  "improved_prompt": {
+    "text": "Write a professional, engaging tweet about the latest AI advancements in healthcare, targeting medical professionals. Keep it under 280 characters.",
+    "improvements": [
+      "Added target audience: medical professionals",
+      "Defined tone: professional and engaging",
+      "Specified AI aspect: healthcare advancements",
+      "Added length constraint"
+    ]
+  },
+  "safety_notes": {
+    "safe": true,
+    "concerns": [],
+    "recommendations": [],
+    "checklist": {
+      "no_hate_speech": true,
+      "no_violence": true,
+      "no_sexual_content": true,
+      "no_misinformation": true,
+      "respectful_tone": true
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "workflow_id": "web-research-summary",
+  "name": "Web Research and Summary",
+  "description": "Searches the web for a topic and summarizes the findings.",
+  "pack_id": "core",
+  "version": "1.0.0",
+  "steps": [
+    {
+      "step_id": "search_step",
+      "skill_id": "core.search",
+      "command": "search_web",
+      "parameters": {
+        "query": "${inputs.topic}"
+      }
+    },
+    {
+      "step_id": "read_step",
+      "skill_id": "webpage-summary",
+      "command": "summarize",
+      "parameters": {
+        "url": "${steps.search_step.outputs.first_result_url}"
+      }
+    }
+  ]
+}

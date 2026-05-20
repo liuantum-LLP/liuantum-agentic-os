@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "pack_id": "analytics-starter-pack",
+  "name": "Analytics Starter Skill Pack",
+  "version": "0.1.0",
+  "description": "Starter skills for data analytics workflows. Includes CSV analysis and prompt review capabilities.",
+  "author": "Liuant contributors",
+  "license": "MIT",
+  "homepage": null,
+  "repository": null,
+  "tags": ["analytics", "csv", "reports", "prompt-review"],
+  "skills": [
+    {
+      "id": "csv-summary-skill",
+      "version": "0.1.0",
+      "path": "skills/csv-summary-skill"
+    },
+    {
+      "id": "prompt-review-skill",
+      "version": "0.1.0",
+      "path": "skills/prompt-review-skill"
+    }
+  ],
+  "created_at": "2026-05-19T00:00:00+00:00",
+  "liuant_min_version": "2.2.0"
+}

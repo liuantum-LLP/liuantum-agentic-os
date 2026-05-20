@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "id": "prompt-review-skill",
+  "name": "Prompt Review Skill",
+  "version": "0.1.0",
+  "description": "Review and improve prompts. Provides clarity score, safety notes, and improved prompt draft. Requires models.generate permission.",
+  "author": "Liuant contributors",
+  "license": "MIT",
+  "entrypoint": "skill.py",
+  "runtime": "python",
+  "category": "review",
+  "permissions": [
+    "models.generate"
+  ],
+  "commands": [
+    {
+      "name": "review-prompt",
+      "description": "Review a prompt and suggest improvements.",
+      "input_schema": {
+        "prompt": {
+          "type": "string",
+          "description": "The prompt to review and improve"
+        }
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "type": "keyword",
+      "pattern": "review prompt",
+      "description": "Trigger when user asks to review a prompt"
+    }
+  ],
+  "ui": {},
+  "tags": ["review", "prompt", "quality", "starter"]
+}

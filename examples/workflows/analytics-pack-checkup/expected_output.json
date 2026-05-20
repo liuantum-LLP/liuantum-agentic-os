@@ -1,0 +1,66 @@
+{
+  "inspection": {
+    "pack_path": "workspace/skills/packs/analytics-starter-pack",
+    "pack_id": "analytics-starter-pack",
+    "version": "0.1.0",
+    "skills_count": 3,
+    "skills": ["csv-summary-skill", "data-visualization-skill", "report-generation-skill"],
+    "metadata_complete": true,
+    "readme_present": true,
+    "changelog_present": false,
+    "issues": [
+      "No changelog found"
+    ]
+  },
+  "lint_result": {
+    "score": 75,
+    "grade": "C",
+    "issues": [
+      "README.md missing section: ## Skills",
+      "README.md missing section: ## Installation",
+      "No changelog found"
+    ],
+    "recommendations": [
+      "Add Skills section to README",
+      "Add Installation section to README",
+      "Create a changelog"
+    ],
+    "safe_to_use": true
+  },
+  "checklist": {
+    "items": [
+      {
+        "item": "Pack structure valid",
+        "status": "pass",
+        "notes": ""
+      },
+      {
+        "item": "README present",
+        "status": "pass",
+        "notes": "README.md found"
+      },
+      {
+        "item": "Metadata complete",
+        "status": "pass",
+        "notes": "All required fields present"
+      },
+      {
+        "item": "No secrets detected",
+        "status": "pass",
+        "notes": "Secret scan passed"
+      },
+      {
+        "item": "Skills valid",
+        "status": "pass",
+        "notes": "All skills have valid skill.json"
+      },
+      {
+        "item": "Changelog present",
+        "status": "warning",
+        "notes": "No changelog found - consider adding"
+      }
+    ],
+    "overall_status": "warning",
+    "summary": "Pack passes basic safety checks. Add changelog for better version tracking."
+  }
+}

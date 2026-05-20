@@ -1,204 +1,98 @@
 # Liuant Agentic OS
 
-**Open-source, local-first AI agent operating system for building, managing, and automating AI agents from chat.**
+**Local-first open-source Agentic OS for voice, browser automation, desktop automation, workflows, skills, and multi-model AI.**
 
----
+Liuant Agentic OS is a robust desktop agent platform that operates locally, providing absolute privacy and control over your AI assistants. By design, no external actions happen without your explicit approval, keeping you safe while orchestrating complex automations.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/liuant/liuant-agentic-os/actions/workflows/ci.yml/badge.svg)](https://github.com/liuant/liuant-agentic-os/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-1.0.2-brightgreen.svg)](CHANGELOG.md)
+## Feature Summary
+- **Model Roles**: Distinct roles for thinking, coding, planning, fast tasks, and fallbacks.
+- **Multi-provider AI**: Bring your own keys. Supports Amazon Bedrock, OpenRouter, Google Gemini, OpenAI, Anthropic, Groq, Mistral, Together, and Fireworks.
+- **Local AI Support**: Out-of-the-box support for Ollama and LM Studio.
+- **Voice Wake Assistant Foundation**: Simulation-first voice wake system, ensuring microphone requests remain opt-in and under control.
+- **Browser Automation**: Safely automate browser tasks with granular approvals.
+- **Desktop Automation**: Open applications, run scripts, and inspect local environments safely.
+- **Skills & Skill Packs**: Expand capabilities by creating or installing localized skill sets.
+- **Workflows**: Multi-step orchestrated pipelines that combine several skills sequentially.
+- **Backup/Restore**: Keep your agent's memory, settings, and workflows safely backed up locally.
+- **Usage/Cost Tracking**: Built-in tracking to help monitor local and cloud AI consumption.
+- **Provider Health**: Diagnostic suite to measure model and API availability.
+- **Approval Queue**: Centralized gatekeeper ensuring no critical action occurs without explicit user consent.
 
-Liuant Agentic OS is a local-first AI agent operating system. It is **not a cloud service** — everything runs on your machine. You configure providers, create agents, set up automations, connect social accounts, and manage drafts — all through a chat interface.
-
-**No auto-send. No auto-publish. No cloud dependency for core functionality. Approval-gated by default.**
-
----
-
-## Key Features
-
-- **Chat-first agent setup** — Configure providers, connectors, agents, and automations through natural language. Secrets collected securely and stored in the encrypted local SecretStore.
-- **Minimal desktop UI** — Tauri + React + TypeScript desktop app with 6-item navigation (Chat, Dashboard, Agents, Automations, Knowledge, Settings).
-- **Multi-provider Model Hub** — Text, image, video, embedding, speech-to-text, text-to-speech. OpenAI, OpenRouter, Ollama, LM Studio, and custom APIs.
-- **Local-first secrets** — API keys and OAuth tokens stored in the encrypted local SecretStore. Never displayed, never logged.
-- **Agents and automations** — Deterministic agent runs with optional AI enhancement. Local tick-based scheduler for recurring tasks.
-- **Gmail draft-only** — Read inbox, search, create drafts. Sending is **not implemented**.
-- **Telegram bot connector** — Bot-only, draft-only by default. Auto-reply disabled. Prompt-injection warnings.
-- **Approval-gated social architecture** — LinkedIn and X OAuth. Publishing requires approval + manual per-connector enablement.
-- **Memory and RAG** — Local hash embeddings, SQLite knowledge base, opt-in RAG for agent runs.
-- **Image/video generation architecture** — Model-based and HyperFrames modes. No fake rendered output.
-- **Unsigned desktop builds** — Community builds are unsigned. Signing is optional for maintainers only.
-
-## Safety Principles
-
-| Principle | Detail |
-|---|---|
-| No auto-send | Gmail sending is not implemented. |
-| No auto-publish | Social publishing requires approval + manual enablement per connector. |
-| No passwords collected | Liuant does not ask for passwords. |
-| Approval-gated | Every external action creates an approval record. |
-| Local-first secrets | Secrets stored in encrypted SecretStore. Never logged. |
-| No cloud dependency | ChatIntentRouter uses deterministic pattern matching. AI is optional. |
-| Unsigned builds | Community DMG builds are unsigned. No Apple Developer ID required. |
+## Safety First
+Liuant Agentic OS is built on a foundation of zero implicit trust:
+- **Local-first**: All configurations, settings, memory, and code exist strictly on your local machine.
+- **No cloud sync by default**: You decide if and when to backup data; no implicit cloud syncing.
+- **No marketplace server**: Skills and workflows are distributed directly, ensuring no centralized surveillance.
+- **Skills disabled by default**: Newly imported skills require explicit user enablement.
+- **Browser/Desktop actions approval-gated**: Actions involving external side-effects trigger the Approval Queue.
+- **No autonomous interactions**: No auto-submit, auto-purchase, auto-publish, or auto-send. You remain the final decider.
+- **Secrets redacted**: All secrets are heavily redacted from queues and logs to prevent credential leakage.
 
 ## Quick Start
-
 ```bash
-# Clone and set up
-git clone https://github.com/liuant/liuant-agentic-os.git
-cd liuant_ai
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
+# Clone the repository
+git clone https://github.com/liuantum-LLP/liuant-agentic-os.git
+cd liuant-agentic-os
 
-# Verify installation
-./liuant doctor
+# Create a virtual environment and install backend natively
+python3 -m venv venv
+source venv/bin/activate
+pip install -e .
 
-# Run tests
-pytest -q
-
-# Start the backend
+# Launch the backend
 ./liuant start
+```
 
-# One-click startup check (desktop app)
-./liuant desktop one-click-check
-./liuant desktop launch-check
-
-# Open the desktop UI
+## Desktop Setup
+```bash
 cd apps/desktop
 npm install
 npm run build
-# or: npm run tauri:dev  (requires Rust/Cargo)
+npm run dev # or npm run tauri dev
 ```
 
-## CLI Examples
-
+## Sidecar Setup
+If you want to bundle the backend with the Tauri app using PyInstaller:
 ```bash
-# Installation and setup
-./liuant doctor
-./liuant status
-./liuant auth token
-
-# One-click startup
-./liuant desktop one-click-check
-./liuant desktop launch-check
-
-# Configure through chat
-./liuant chat "Connect Telegram"
-./liuant chat "Create a marketing agent"
-./liuant chat "Every morning create a task list"
-
-# Text generation
-./liuant text generate "Write a 5-line marketing caption"
-
-# Image generation
-./liuant image generate "AI-powered software company poster" --mode hyperframes_skill
-
-# Social
-./liuant social campaign create
-./liuant approvals list
-./liuant social publish-approved <draft_id> --connector linkedin
-
-# Desktop build
-./liuant desktop build --native
-./liuant release polish-check
-
-# Sidecar (optional, for bundled backend executable)
-pip install -e ".[sidecar]"
-./liuant sidecar build --confirm
+./liuant sidecar build
 ./liuant sidecar status
-
-# Signing (optional, maintainers only)
-./liuant signing macos-status
 ```
 
-## Desktop
-
-The desktop app is a Tauri + React + TypeScript shell. It connects to the local backend at `http://127.0.0.1:8765`.
-
-**One-click startup:** On launch, the desktop app auto-detects the backend. If unreachable, it polls with exponential backoff and shows a "Starting Liuant..." loading screen. Use the CLI equivalents to check:
-
+## Provider Setup Summary
+You can check or configure providers natively from the CLI:
 ```bash
-./liuant desktop one-click-check   # what auto-start strategies are available
-./liuant desktop launch-check      # attempt auto-start
+./liuant models providers
+./liuant providers openrouter setup-guide
+./liuant providers profile-test lmstudio
 ```
 
-**Community builds are unsigned.** On macOS, you may need to right-click and Open the app the first time. Signing and notarization are optional and only needed for official distribution without Gatekeeper warnings. See `docs/MACOS_SIGNING_NOTARIZATION.md` for the maintainer signing workflow.
+## Examples
 
+### Voice Simulation
+Voice wake and commands are disabled by default. You can simulate interaction without granting microphone access:
 ```bash
-./liuant desktop status
-./liuant desktop build --native   # produces unsigned DMG
-./liantu release candidate-check  # v1.0 release candidate checks
-./liantu release polish-check     # verify release health
+./liuant voice name set "Liu"
+./liuant voice simulate "Hey Liu, list workflows"
 ```
 
-### Backend Modes
-
-Three backend modes are supported:
-
-| Mode | Description | Status |
-|------|-------------|--------|
-| `external_backend` | User starts backend manually (`./liuant start`) | ✅ Default |
-| `managed_backend` | CLI manages backend process (PID tracking) | ✅ Working |
-| `bundled_sidecar` | Standalone executable for auto startup | ✅ Working (requires build) |
-
-To build and use the sidecar:
+### Browser Automation
+Browser automation is off by default. After enabling it in settings, actions get sent to the Approval Queue:
 ```bash
-pip install pyinstaller            # or: pip install liuant-agentic-os[sidecar]
-./liantu sidecar build --confirm   # builds ~9.7 MB executable
-./liantu sidecar run               # starts the backend
-./liantu desktop backend-mode set bundled_sidecar  # switch mode
+./liuant browser status
+# When requested by an agent, check queue:
+./liuant approvals list
 ```
 
-## Project Structure
-
-```
-liuant_ai/
-  cli/liuant.py              # CLI entry point
-  runtime/                   # Backend runtime
-    config.py                # Settings, providers, permissions
-    release.py               # Release, signing, checksums
-    chat/intent_router.py    # ChatIntentRouter
-  apps/desktop/              # Tauri + React desktop app
-  docs/                      # Documentation
-  scripts/                   # Build and utility scripts
-  installer/                 # Install and package scripts
-  tests/                     # Python test suite
+### Workflows
+Preview and execute multi-step routines safely:
+```bash
+./liuant skills workflows list
+./liuant skills workflows preview example-workflow
+./liuant skills workflows run example-workflow --confirm true
 ```
 
-## Documentation
+## Known Limitations
+Please review the [Known Limitations](docs/KNOWN_LIMITATIONS.md) document to fully understand the current release scope.
 
-| Document | Purpose |
-|---|---|
-| `docs/INSTALLATION.md` | Full setup guide |
-| `docs/DESKTOP_PACKAGING.md` | Desktop build and packaging |
-| `docs/SIDECAR_BACKEND.md` | Sidecar backend strategy and usage |
-| `docs/V1_RELEASE_CANDIDATE.md` | v1.0 release readiness checklist |
-| `docs/CHAT_FIRST_UX.md` | Chat-first UX design |
-| `docs/SIGNING.md` | Optional maintainer signing pipeline |
-| `docs/SECURITY.md` | Security model and policies |
-| `docs/TROUBLESHOOTING.md` | Common issues and backend troubleshooting |
-| `CONTRIBUTING.md` | How to contribute |
-| `ROADMAP.md` | Project roadmap |
-
-## License
-
-MIT License — see [LICENSE](LICENSE).
-
-Copyright (c) 2026 Liuant Agentic OS contributors.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). All contributions welcome — bug fixes, features, documentation, tests.
-
-- Run `pytest -q` before submitting.
-- No secrets in commits.
-- Keep external actions approval-gated.
-
-## Security
-
-See [SECURITY.md](SECURITY.md) for our security policy and how to report vulnerabilities.
-
-- Local-first secret storage.
-- Approval-gated external actions.
-- No secrets in logs.
-- Report vulnerabilities privately to admin@liuantum.com.
+## License and Startup
+This is released under the MIT License. Use one-click-check for testing one-click startup.

@@ -48,6 +48,22 @@ Provider states are intentionally explicit:
 - `configured`: required configuration is present.
 - `missing_key`: expected API key was not found.
 - `local_unreachable`: local endpoint is not reachable.
+
+## Discussion Streaming Safety (v1.4.0)
+
+- **No hidden reasoning streamed**: Only user-visible role outputs are streamed via SSE.
+- **Secrets redacted**: User messages pass through `redact_secrets()` before model calls. Patterns include passwords, OTPs, API keys, tokens, and Bearer tokens.
+- **Errors redacted**: Error messages are truncated to 100 characters and sensitive patterns are redacted.
+- **No token/chunk logging**: Tokens are streamed to the client but not logged server-side.
+- **Role content restricted**: Discussion role content is limited to concise, visible output only.
+
+## Usage Tracking Safety (v1.4.0)
+
+- **No secrets stored**: Usage events only store provider, model, role, tokens, and cost.
+- **Estimated by default**: Costs are marked `estimated=true` unless exact provider usage is returned.
+- **Local data only**: Usage data is stored locally in SQLite and can be reset at any time.
+- **No external reporting**: Usage data is not sent to external services.
+- **Local providers zero cost**: ollama, lmstudio, and other local providers show zero cloud cost.
 - `placeholder`: provider is config-ready but real calls are not implemented.
 - `ready`: local skill or endpoint is available.
 - `provider_error`: provider call failed and no fake output was created.
@@ -72,6 +88,31 @@ Generated packages and media are saved under `workspace/outputs`. Provider integ
 - Downloaded files are saved only in `workspace/outputs/videos`.
 - Provider tokens are never written to action logs.
 - No YouTube upload, social upload, or automatic publishing is implemented.
+
+## Workflow Audit Log Safety (v2.5.0)
+
+- **No secrets stored**: Audit logs record metadata only — run IDs, statuses, durations, step counts.
+- **Secret redaction**: Error messages pass through `_redact_secrets()` before storage. Patterns include API keys, tokens, passwords, and secret-like values.
+- **No file contents**: Input/output data is never logged. Only output keys and step status are recorded.
+- **No raw prompts**: LLM interactions are not stored in audit logs.
+- **Local-only**: Audit logs are stored in `workspace/skills/workflow_audit/` and never transmitted.
+- **No telemetry**: No network calls are made with audit data.
+
+## Workflow Execution Safety (v2.5.0)
+
+- **Preview before run**: `preview_workflow_run()` checks readiness without executing any skills.
+- **Permission review**: `workflow_permission_summary()` shows all required permissions before execution.
+- **Confirmation required**: `run_workflow()` requires `user_confirmed=True` for actual execution.
+- **Output chaining is safe**: Missing input keys cause step failure (not silent fallback). Defaults only apply to params not in `input_from`.
+- **Dry-run is safe**: Dry-run mode never calls `run_skill()`. Shows execution plan with input resolution.
+- **Rerun is preview-only**: `preview_rerun_from_step()` returns a plan — actual rerun requires confirmation.
+
+## Recommendation Safety (v2.5.0)
+
+- **Local-only**: Recommendations use only local catalog, installed skills, and workflow data.
+- **No network calls**: `recommend_packs()` and `get_recommendations()` never make HTTP requests.
+- **No telemetry**: Usage data is not sent to external services for ranking.
+- **Factor transparency**: `explain=True` returns factor breakdown so users understand why a pack is recommended.
 
 ## Verification And Backups
 

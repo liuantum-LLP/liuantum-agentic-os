@@ -182,7 +182,7 @@ function App() {
         <div className="sidebar-brand">
           <div className="brand-icon">LA</div>
           <h1>Liuant Agentic OS</h1>
-          <span className="sidebar-version">v1.3.0</span>
+          <span className="sidebar-version">v3.1.0</span>
         </div>
         <nav className="sidebar-nav">
           {NAV_ITEMS.map((item) => (

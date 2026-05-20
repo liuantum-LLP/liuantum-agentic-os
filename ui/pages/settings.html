@@ -1,1 +1,132 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Settings</title><link rel="stylesheet" href="../styles.css"/></head><body data-page="settings"><div class="shell"><aside class="sidebar"><div class="brand">Liuant Agentic OS</div><div class="mode">Internal settings</div><nav class="nav"><a href="../index.html">System Dashboard</a><a class="active" href="./settings.html">Settings</a><a href="./provider-setup.html">Provider Setup</a><a href="./permissions.html">Permissions</a><a href="./skills.html">Skills</a><a href="./workspaces.html">Workspaces</a><a href="./onboarding.html">Onboarding</a><a href="./connectors.html">Connectors</a><a href="./agent-builder.html">Agent Builder</a></nav></aside><main class="main"><div class="topline"><h1>Settings</h1><div class="safety">Settings are persisted in SQLite.</div></div><section class="grid"><article class="card"><h2>Editable App Settings</h2><p>Use the API or CLI to update settings; live values appear below.</p></article></section></main></div><script src="../app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Settings - Liuant</title>
+  <link rel="stylesheet" href="../styles.css"/>
+</head>
+<body data-page="settings">
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">Liuant Agentic OS</div>
+      <div class="mode">Internal settings</div>
+      <nav class="nav">
+        <a href="../index.html">System Dashboard</a>
+        <a class="active" href="./settings.html">Settings</a>
+        <a href="./provider-setup.html">Provider Setup</a>
+        <a href="./permissions.html">Permissions</a>
+        <a href="./skills.html">Skills</a>
+        <a href="./workspaces.html">Workspaces</a>
+        <a href="./onboarding.html">Onboarding</a>
+        <a href="./connectors.html">Connectors</a>
+        <a href="./agent-builder.html">Agent Builder</a>
+      </nav>
+    </aside>
+    <main class="main">
+      <div class="topline">
+        <h1>Settings</h1>
+        <div class="safety">Settings are persisted in SQLite.</div>
+      </div>
+      <section class="grid">
+        <article class="card">
+          <h2>Editable App Settings</h2>
+          <p>Use the API or CLI to update settings; live values appear below.</p>
+        </article>
+
+        <!-- Workflow Management -->
+        <article class="card stack">
+          <h2>Workflow Management</h2>
+          <p>Import, export, and validate agentic workflows (.liuantworkflow).</p>
+          <div class="stack">
+            <h3>Export Workflow</h3>
+            <input type="text" id="export-wf-id" placeholder="Workflow ID (e.g. csv-analysis-report)" />
+            <input type="text" id="export-wf-path" placeholder="Output Path (e.g. workspace/exports/csv-analysis.liuantworkflow)" />
+            <button id="btn-export-wf">Export Workflow</button>
+          </div>
+          <hr style="border-color: #21333a; margin: 8px 0;" />
+          <div class="stack">
+            <h3>Import Workflow</h3>
+            <input type="text" id="import-wf-path" placeholder="Archive Path (e.g. downloads/my-workflow.liuantworkflow)" />
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #9fb1ad; cursor: pointer;">
+              <input type="checkbox" id="import-wf-confirm" style="width: auto; margin: 0;" /> Confirm Import (Safe Mode)
+            </label>
+            <button id="btn-import-wf">Import Workflow</button>
+          </div>
+          <hr style="border-color: #21333a; margin: 8px 0;" />
+          <div class="stack">
+            <h3>Validate Workflow Package</h3>
+            <input type="text" id="validate-wf-path" placeholder="Archive Path (e.g. downloads/my-workflow.liuantworkflow)" />
+            <button id="btn-validate-wf" class="secondary">Validate Package</button>
+          </div>
+        </article>
+
+        <!-- Workflow Packs -->
+        <article class="card stack">
+          <h2>Workflow Packs</h2>
+          <p>Bundle multiple workflows into workflow packs (.liuantworkflowpack).</p>
+          <div class="stack">
+            <h3>Export Pack</h3>
+            <input type="text" id="pack-wf-ids" placeholder="Workflow IDs (comma separated)" />
+            <input type="text" id="pack-id" placeholder="Pack ID (e.g. analytics-pack)" />
+            <input type="text" id="pack-path" placeholder="Output Path (e.g. workspace/exports/analytics.liuantworkflowpack)" />
+            <input type="text" id="pack-name" placeholder="Pack Display Name" />
+            <input type="text" id="pack-version" placeholder="Pack Version (e.g. 1.0.0)" />
+            <button id="btn-export-pack">Export Pack</button>
+          </div>
+          <hr style="border-color: #21333a; margin: 8px 0;" />
+          <div class="stack">
+            <h3>Import Pack</h3>
+            <input type="text" id="import-pack-path" placeholder="Archive Path (e.g. downloads/my-pack.liuantworkflowpack)" />
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #9fb1ad; cursor: pointer;">
+              <input type="checkbox" id="import-pack-confirm" style="width: auto; margin: 0;" /> Confirm Pack Import (Safe Mode)
+            </label>
+            <button id="btn-import-pack">Import Pack</button>
+          </div>
+          <hr style="border-color: #21333a; margin: 8px 0;" />
+          <div class="stack">
+            <h3>Inspect Pack</h3>
+            <input type="text" id="inspect-pack-path" placeholder="Archive Path (e.g. downloads/my-pack.liuantworkflowpack)" />
+            <button id="btn-inspect-pack" class="secondary">Inspect Pack</button>
+          </div>
+        </article>
+
+        <!-- Backup & Restore -->
+        <article class="card stack">
+          <h2>Backup &amp; Restore</h2>
+          <p>Verify and restore secure system backups (.liuantbackup). Restores disable all entities by default for security.</p>
+          <div class="stack">
+            <h3>Validate Backup</h3>
+            <input type="text" id="val-backup-path" placeholder="Backup File Path (e.g. backups/my-backup.liuantbackup)" />
+            <button id="btn-val-backup" class="secondary">Validate Backup</button>
+          </div>
+          <hr style="border-color: #21333a; margin: 8px 0;" />
+          <div class="stack">
+            <h3>Inspect Backup</h3>
+            <input type="text" id="inspect-backup-path" placeholder="Backup File Path (e.g. backups/my-backup.liuantbackup)" />
+            <button id="btn-inspect-backup" class="secondary">Inspect Backup</button>
+          </div>
+          <hr style="border-color: #21333a; margin: 8px 0;" />
+          <div class="stack">
+            <h3>Restore Backup</h3>
+            <input type="text" id="restore-backup-path" placeholder="Backup File Path (e.g. backups/my-backup.liuantbackup)" />
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #9fb1ad; cursor: pointer;">
+              <input type="checkbox" id="restore-backup-confirm" style="width: auto; margin: 0;" /> Confirm Restore (Safe Mode)
+            </label>
+            <button id="btn-restore-backup">Restore Backup</button>
+          </div>
+        </article>
+      </section>
+
+      <!-- Panel for displaying validation / inspection outputs -->
+      <section class="live-data hidden" id="workflow-panel-output" style="margin-top: 24px;">
+        <article class="card stack">
+          <h2 id="output-title">Action Result</h2>
+          <pre id="output-content" style="max-height: 400px;"></pre>
+        </article>
+      </section>
+    </main>
+  </div>
+  <script src="../app.js"></script>
+</body>
+</html>

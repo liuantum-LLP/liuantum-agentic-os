@@ -1,25 +1,21 @@
 {
   "app": "Liuant Agentic OS",
-  "version": "1.3.0",
+  "version": "3.1.0",
   "channel": "stable-open-source",
   "minimum_python": "3.11",
   "supported_platforms": ["macos", "linux", "windows"],
   "release_notes": [
-    "v1.3.0 Agent runtime model role polish and streaming responses",
-    "Agent role inference: coding-agent → coding, brand-strategist → planning, etc.",
-    "Agent run output shows model role, provider/model, fallback, discussion mode",
-    "CLI --model-role overrides agent preferred role",
-    "CLI --discussion enables agent discussion mode",
-    "CLI --stream enables streaming for chat, text generate, and agent runs",
-    "Streaming provider interface: stream_text() with token/metadata/error/done chunks",
-    "Ollama streaming via /api/generate with stream=true",
-    "OpenAI-compatible streaming via /chat/completions with stream=true",
-    "Streaming fallback to generate_text for non-streaming providers",
-    "API: /api/chat/stream, /api/models/stream, /api/agents/{slug}/stream (SSE)",
-    "Chat UI: Streaming toggle, progressive token display, stop button",
-    "Chat UI: Discussion Mode + Streaming shows warning and falls back to non-streaming",
-    "Safety: no secrets logged during streaming, sensitive prompt redaction",
-    "Automation model_role saved and displayed in creation preview",
-    "549 tests pass, frontend builds clean"
+    "v2.6.0 Official Workflow Examples & Desktop UI Polish",
+    "Official workflow examples: csv-analysis-report, prompt-improvement-review, starter-greeting-workflow, analytics-pack-checkup",
+    "Workflow discovery: list_workflows includes examples/workflows/, discover_workflows finds workflows",
+    "CLI commands: liuant skills workflow discover, validate --workflow-id",
+    "API endpoints: GET /api/skills/workflows, POST /api/skills/workflows/discover, POST /api/skills/workflows/validate",
+    "Desktop workflow UI: Workflow Templates section with cards showing preview, permissions, dry-run/run, audit history",
+    "URL staging confirmation flow: URL input, preview, staged_id, validation, import, install",
+    "Lint fix suggestions UI: score, grade, issues, recommendations, safe fixes",
+    "Recommendation ranking UI: score, reason, factor breakdown, risk summary, trust state",
+    "Chat-first workflow bridge: preview, permissions, audit, dry-run, rerun plan intents",
+    "Safety: No marketplace server, no cloud sync, no auto-install, no auto-enable, no auto-run",
+    "815 tests pass, TypeScript clean, frontend builds clean"
   ]
 }

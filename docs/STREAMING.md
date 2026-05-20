@@ -1,6 +1,16 @@
-# Streaming — Liuant Agentic OS v1.3.0
+# Streaming — Liuant Agentic OS v1.4.0
 
 Streaming enables progressive token delivery from AI providers, giving users real-time feedback during generation.
+
+## Discussion Mode Streaming (v1.4.0)
+
+Discussion Mode now supports real-time SSE streaming via `stream_discussion()`. See [DISCUSSION_STREAMING.md](DISCUSSION_STREAMING.md) for full details.
+
+```bash
+./liuant chat --discussion --stream "Plan Liuant launch"
+```
+
+Events: `discussion_start`, `role_start`, `role_token`, `role_done`, `final_start`, `final_token`, `usage_update`, `discussion_done`.
 
 ## Supported Providers
 

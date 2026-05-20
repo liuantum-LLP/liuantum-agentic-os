@@ -1,100 +1,52 @@
-# Installation
+# Installation Guide
 
-## Developer Installation (Editable)
+## Prerequisites
+- **Python 3.11+**: We recommend Python 3.11 to 3.14. Always use the `python3` command (avoid `python` if it resolves to an older version).
+- **Node.js 20+** and **npm**: Required for building the desktop React UI.
+- **Rust / Cargo**: Required *only* if you are building the native Tauri desktop bundle.
+
+## Step 1: Install the Backend
+The backend serves as the core OS processing engine.
 
 ```bash
-# Clone
-git clone https://github.com/liuant/liuant-agentic-os.git
-cd liuant_ai
+# Clone the repository
+git clone https://github.com/liuantum-LLP/liuant-agentic-os.git
+cd liuant-agentic-os
 
-# Create and activate virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
+# Create a fresh virtual environment
+python3 -m venv venv
+source venv/bin/activate
 
-# Install in editable mode
-python -m pip install -e .
-
-# Verify
-./liuant doctor
+# Install core dependencies natively
+pip install -e .
 ```
 
-## First Run
+### Optional: Browser Automation Dependency
+To enable the advanced browser automation capabilities, install the extra dependencies.
 
 ```bash
-./liuant repair
-./liuant doctor
+pip install -e ".[browser]"
+python3 -m playwright install chromium
+```
+
+## Step 2: Build the Desktop UI
+The frontend UI allows you to interface visually with your agent.
+
+```bash
+cd apps/desktop
+npm install
+npm run build
+```
+
+## Step 3: Launch
+Once built, you can start the development server or the sidecar:
+
+```bash
+cd ../..
 ./liuant start
 ```
 
-## One-Click Startup
+*For bundled distributions, read our [Desktop Packaging Guide](DESKTOP_PACKAGING.md) to generate standalone executables.*
 
-Check what auto-start strategies are available, then attempt launch:
-
-```bash
-./liuant desktop one-click-check
-./liuant desktop launch-check
-```
-
-The desktop app also auto-polls the backend on launch with a loading screen.
-
-## Sidecar Backend (Optional)
-
-Build a standalone backend executable for automatic desktop integration:
-
-```bash
-# Install PyInstaller (optional dependency)
-pip install -e ".[sidecar]"
-
-# Build the sidecar executable (~9.7 MB)
-./liuant sidecar build --confirm
-
-# Verify and run
-./liuant sidecar check
-./liuant sidecar status
-./liuant sidecar run
-
-# Switch backend mode
-./liuant desktop backend-mode set bundled_sidecar
-```
-
-The executable binds only to `127.0.0.1`. Or use `external_backend` / `managed_backend` without building anything.
-
-## Native Desktop Development
-
-The Tauri scaffold exists under `apps/desktop`.
-
-```bash
-./liuant desktop check
-./liuant desktop icons-generate
-./liuant desktop icons-check
-./liuant desktop native-check
-./liuant desktop build-guide
-./liuant signing status
-./liuant start 8765
-cd apps/desktop
-npm install
-npm run typecheck
-npm run build
-npm run tauri:dev      # or: npm run tauri build
-```
-
-Native Tauri dev/build requires Rust and Cargo platform prerequisites.
-Native builds remain unsigned and not notarized — see `docs/MACOS_SIGNING_NOTARIZATION.md` for optional maintainer signing.
-
-## Backend Mode
-
-The desktop app defaults to external backend mode:
-
-```bash
-./liuant desktop backend-mode
-./liuant start 8765
-```
-
-For local managed mode:
-
-```bash
-./liuant desktop backend-mode set managed_backend
-./liuant desktop backend-start
-```
-
-The backend still binds only to `127.0.0.1`. Bundled sidecar is available after `./liuant sidecar build --confirm`.
+## Note on sidecar build and one-click-check
+Ensure you test with one-click-check. For the sidecar build, refer to other docs.

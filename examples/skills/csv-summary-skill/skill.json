@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "id": "csv-summary-skill",
+  "name": "CSV Summary Skill",
+  "version": "0.1.0",
+  "description": "Analyze CSV files and create summary reports including row count, column count, column names, and missing value summary.",
+  "author": "Liuant contributors",
+  "license": "MIT",
+  "entrypoint": "skill.py",
+  "runtime": "python",
+  "category": "analytics",
+  "permissions": [
+    "filesystem.read",
+    "workspace.read"
+  ],
+  "commands": [
+    {
+      "name": "csv-summary",
+      "description": "Generate a summary report for a CSV file.",
+      "input_schema": {
+        "csv_path": {
+          "type": "string",
+          "description": "Path to the CSV file (must be within workspace or skill directory)"
+        }
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "type": "keyword",
+      "pattern": "csv summary",
+      "description": "Trigger when user asks for CSV summary"
+    }
+  ],
+  "ui": {},
+  "tags": ["analytics", "csv", "data", "starter"]
+}

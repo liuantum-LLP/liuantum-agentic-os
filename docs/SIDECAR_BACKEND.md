@@ -172,3 +172,6 @@ PyInstaller is an optional dependency (`pip install liuant-agentic-os[sidecar]`)
 ---
 
 Last updated: v1.0.0
+
+## Note on sidecar build
+Provides sidecar build instructions.

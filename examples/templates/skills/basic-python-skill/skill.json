@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "id": "basic-python-skill",
+  "name": "Basic Python Skill",
+  "version": "0.1.0",
+  "description": "A minimal Python skill template. Replace this description with your skill's purpose.",
+  "author": "Liuant contributors",
+  "license": "MIT",
+  "entrypoint": "skill.py",
+  "runtime": "python",
+  "category": "utility",
+  "permissions": [],
+  "commands": [
+    {
+      "name": "run",
+      "description": "Execute the skill",
+      "input_schema": {
+        "message": {
+          "type": "string",
+          "description": "Input message"
+        }
+      }
+    }
+  ],
+  "triggers": [],
+  "ui": {},
+  "tags": [
+    "template",
+    "python"
+  ]
+}

@@ -19,6 +19,9 @@ type ChatMessage = {
   roleUsed?: string;
   fallbackWarning?: string;
   costWarning?: string;
+  discussionStreaming?: boolean;
+  roleCards?: { role: string; provider: string; model: string; content: string; status: string; round: number }[];
+  usageInfo?: { estimated_tokens: number; estimated_cost: number; estimated: boolean };
 };
 
 type ChatState = {
@@ -46,6 +49,7 @@ export function ChatPage() {
   const [discussionRoles, setDiscussionRoles] = useState<string[]>(["auto"]);
   const [discussionSettings, setDiscussionSettings] = useState<Record<string, unknown> | null>(null);
   const [streamingMode, setStreamingMode] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [streamingAbort, setStreamingAbort] = useState<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -69,35 +73,120 @@ export function ChatPage() {
     setState((prev) => ({ ...prev, messages: [...prev.messages, msg] }));
   }
 
+  const handleMicClick = () => {
+    if (isListening) return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in your browser. Using simulated voice payload.");
+      sendMessage("Hey Liuant, show system status");
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      sendMessage(transcript);
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    recognition.start();
+  };
+
   async function sendMessage(message: string) {
     if (!message.trim()) return;
     addMessage({ role: "user", content: message });
     setState((prev) => ({ ...prev, loading: true }));
     try {
       if (discussionMode && streamingMode) {
-        const msg: ChatMessage = {
-          role: "assistant",
-          content: "Streaming is not yet available for Discussion Mode. Running normal discussion response.",
-          intent: "discussion",
-        };
-        addMessage(msg);
-        const result = await apiPost<{
-          status: string;
-          final_answer: string;
-          transcript?: { role: string; round: number; content: string; status: string }[];
-          roles_used?: string[];
-          warnings?: string[];
-          cost_note?: string;
-          fallback_used?: boolean;
-        }>("/api/chat/discussion", { message: message.trim(), roles: discussionRoles, rounds: discussionRounds });
-        setState((prev) => ({
-          ...prev,
-          messages: prev.messages.map((m, i) =>
-            i === prev.messages.length - 1
-              ? { ...m, content: result.final_answer || "Discussion completed.", discussionTranscript: result.transcript, discussionRoles: result.roles_used, discussionWarnings: result.warnings, discussionCostNote: result.cost_note }
-              : m
-          ),
-        }));
+        const abortController = new AbortController();
+        setStreamingAbort(abortController);
+        const msgIndex = state.messages.length;
+        addMessage({ role: "assistant", content: "", intent: "discussion-streaming", discussionStreaming: true, roleCards: [] });
+        let finalText = "";
+        const roleCards: ChatMessage["roleCards"] = [];
+        let usageInfo: ChatMessage["usageInfo"] = undefined;
+        try {
+          const response = await fetch("/api/chat/discussion-stream", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: message.trim(), roles: discussionRoles, rounds: discussionRounds }),
+            signal: abortController.signal,
+          });
+          const reader = response.body?.getReader();
+          if (!reader) throw new Error("No reader");
+          const decoder = new TextDecoder();
+          let buffer = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                try {
+                  const chunk = JSON.parse(line.slice(6));
+                  if (chunk.type === "role_start") {
+                    roleCards.push({ role: chunk.role, provider: chunk.provider, model: chunk.model, content: "", status: "running", round: chunk.round || 1 });
+                    setState((prev) => ({
+                      ...prev,
+                      messages: prev.messages.map((m, i) => i === msgIndex ? { ...m, roleCards: [...roleCards] } : m),
+                    }));
+                  } else if (chunk.type === "role_token") {
+                    const lastCard = roleCards[roleCards.length - 1];
+                    if (lastCard) {
+                      lastCard.content += chunk.content;
+                      setState((prev) => ({
+                        ...prev,
+                        messages: prev.messages.map((m, i) => i === msgIndex ? { ...m, roleCards: [...roleCards] } : m),
+                      }));
+                    }
+                  } else if (chunk.type === "role_done") {
+                    const lastCard = roleCards[roleCards.length - 1];
+                    if (lastCard) {
+                      lastCard.status = chunk.status || "completed";
+                    }
+                  } else if (chunk.type === "final_token") {
+                    finalText += chunk.content;
+                    setState((prev) => ({
+                      ...prev,
+                      messages: prev.messages.map((m, i) => i === msgIndex ? { ...m, content: finalText } : m),
+                    }));
+                  } else if (chunk.type === "usage_update") {
+                    usageInfo = { estimated_tokens: chunk.estimated_tokens || 0, estimated_cost: chunk.estimated_cost || 0, estimated: chunk.estimated || true };
+                  } else if (chunk.type === "error") {
+                    setState((prev) => ({
+                      ...prev,
+                      messages: prev.messages.map((m, i) => i === msgIndex ? { ...m, content: finalText + "\n\nError: " + chunk.content } : m),
+                    }));
+                  } else if (chunk.type === "discussion_done") {
+                    break;
+                  }
+                } catch {
+                  // Ignore malformed SSE lines
+                }
+              }
+            }
+          }
+          setState((prev) => ({
+            ...prev,
+            messages: prev.messages.map((m, i) => i === msgIndex ? { ...m, roleCards: [...roleCards], content: finalText || "Discussion completed.", usageInfo, discussionStreaming: false } : m),
+            loading: false,
+          }));
+        } catch (err: unknown) {
+          const errorMsg = err instanceof Error && err.name === "AbortError" ? "Streaming stopped." : `Error: ${err instanceof Error ? err.message : "Unknown"}`;
+          setState((prev) => ({
+            ...prev,
+            messages: prev.messages.map((m, i) => i === msgIndex ? { ...m, content: finalText + "\n\n" + errorMsg, discussionStreaming: false } : m),
+            loading: false,
+          }));
+        } finally {
+          setStreamingAbort(null);
+        }
       } else if (discussionMode) {
         const result = await apiPost<{
           status: string;
@@ -337,6 +426,29 @@ export function ChatPage() {
                   {msg.discussionCostNote && <p className="discussion-cost-note">{msg.discussionCostNote}</p>}
                 </details>
               )}
+              {msg.roleCards && msg.roleCards.length > 0 && (
+                <div className="discussion-role-cards">
+                  <h4>Discussion Roles</h4>
+                  {msg.roleCards.map((card, j) => (
+                    <div key={j} className={`role-card ${card.status}`}>
+                      <div className="role-card-header">
+                        <span className="role-card-name">{card.role}</span>
+                        <span className="role-card-round">Round {card.round}</span>
+                        <span className="role-card-model">{card.provider}/{card.model}</span>
+                        <span className={`role-card-status ${card.status === "completed" ? "status-good" : "status-warn"}`}>{card.status}</span>
+                      </div>
+                      <div className="role-card-content">{card.content.slice(0, 300)}{card.content.length > 300 ? "..." : ""}</div>
+                    </div>
+                  ))}
+                  {msg.usageInfo && (
+                    <div className="role-card-usage">
+                      <span>{msg.usageInfo.estimated_tokens} tokens</span>
+                      <span>~${msg.usageInfo.estimated_cost.toFixed(6)}</span>
+                      <span className={msg.usageInfo.estimated ? "estimated" : "exact"}>{msg.usageInfo.estimated ? "estimated" : "exact"}</span>
+                    </div>
+                  )}
+                </div>
+              )}
               {msg.requiredFields && msg.requiredFields.length > 0 && msg.requiredFields[0].options && (
                 <div className="chat-actions">
                   {msg.requiredFields[0].options.map((opt) => (
@@ -344,6 +456,19 @@ export function ChatPage() {
                       {opt}
                     </button>
                   ))}
+                </div>
+              )}
+              {msg.preview && (
+                <div className="action-preview-card">
+                  <div className={`action-risk risk-${String(msg.preview.risk_level || "unknown").toLowerCase()}`}>
+                    {String(msg.preview.risk_level || "Unknown").toUpperCase()} RISK
+                  </div>
+                  <h4 className="action-title">{String(msg.preview.title || "Pending Action")}</h4>
+                  <p className="action-desc">{String(msg.preview.description || "")}</p>
+                  <div className="action-buttons">
+                    <button className="chat-action-btn action-approve" onClick={() => handleActionClick(`Approve action ${msg.preview?.id}`)}>Approve</button>
+                    <button className="chat-action-btn action-reject" onClick={() => handleActionClick(`Reject action ${msg.preview?.id}`)}>Reject</button>
+                  </div>
                 </div>
               )}
               {msg.nextQuestions && msg.nextQuestions.length > 0 && (
@@ -361,7 +486,15 @@ export function ChatPage() {
         {state.loading && (
           <div className="chat-message assistant">
             <div className="chat-bubble">
-              <span className="chat-typing">{discussionMode ? "Models discussing..." : streamingMode ? "Generating..." : "thinking..."}</span>
+              <span className="chat-typing">
+                {state.messages[state.messages.length - 1]?.intent === "discussion-streaming"
+                  ? "Models discussing (streaming)..."
+                  : discussionMode
+                  ? "Models discussing..."
+                  : streamingMode
+                  ? "Generating..."
+                  : "thinking..."}
+              </span>
             </div>
           </div>
         )}
@@ -382,12 +515,10 @@ export function ChatPage() {
             type="checkbox"
             checked={discussionMode}
             onChange={(e) => setDiscussionMode(e.target.checked)}
-            disabled={streamingMode}
           />
           Discussion Mode
-          {discussionMode && streamingMode && <span className="chat-discussion-note"> (disabled while streaming)</span>}
         </label>
-        {discussionMode && !streamingMode && (
+        {discussionMode && (
           <div className="chat-discussion-controls">
             <select
               className="chat-discussion-rounds"
@@ -402,6 +533,16 @@ export function ChatPage() {
             <span className="chat-discussion-note">
               Uses multiple model calls per round. Cloud models incur costs.
             </span>
+            {streamingMode && (
+              <button
+                type="button"
+                className="chat-stop-btn"
+                onClick={stopStreaming}
+                disabled={!streamingAbort}
+              >
+                Stop
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -439,7 +580,12 @@ export function ChatPage() {
             {streamingMode && streamingAbort ? (
               <button className="chat-stop-btn" type="button" onClick={stopStreaming}>Stop</button>
             ) : (
-              <button className="chat-send-btn" type="submit">Send</button>
+              <div className="chat-actions-container" style={{ display: 'flex', gap: '8px' }}>
+                <button className={`chat-mic-btn ${isListening ? "listening" : ""}`} type="button" onClick={handleMicClick} title="Voice Input">
+                  {isListening ? "Listening..." : "🎤"}
+                </button>
+                <button className="chat-send-btn" type="submit">Send</button>
+              </div>
             )}
           </>
         )}

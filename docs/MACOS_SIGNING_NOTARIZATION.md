@@ -1,70 +1,34 @@
-# macOS Code-Signing & Notarization
+# macOS Signing & Notarization
 
-> **Maintainer workflow — not required for community builds.**
+**Note: macOS signing and notarization are entirely optional and reserved strictly for official core maintainers.**
 
-Community builds of Liuant Agentic OS are **unsigned**. You can build, run, and develop the desktop app without any Apple Developer credentials. On macOS, unsigned apps may require right-click → Open on first launch.
+If you are a community developer building from source, your builds will remain **unsigned**. Users can execute an unsigned macOS build by right-clicking the `.app` bundle and selecting **Open**.
 
-This guide is for **project maintainers** who want to produce signed and notarized DMG releases for official distribution.
+## For Core Maintainers
 
----
+To sign and notarize the official release, ensure you have the required Apple Developer Certificates installed in your keychain:
+- Developer ID Application
+- Developer ID Installer
 
-## Prerequisites
-
-1. **Apple Developer Program membership** ($99/year) — only needed for signing, not for development.
-2. **Developer ID Application certificate** (not Development or Distribution).
-3. **App-Specific Password** for notarization.
-
-## Environment Variables
-
-| Variable | For | Description |
-|---|---|---|
-| `APPLE_DEVELOPER_ID_APPLICATION` | Signing | Full subject name of your Developer ID cert |
-| `APPLE_ID` | Notarization | Apple ID email |
-| `APPLE_TEAM_ID` | Notarization | Apple Team ID |
-| `APPLE_APP_SPECIFIC_PASSWORD` | Notarization | App-specific password |
-| `TAURI_SIGNING_PRIVATE_KEY` | Tauri updater | Optional — DMG-only distribution does not need this |
-
-## Signing Workflow (Maintainers Only)
+### 1. Build and Sign the Sidecar
+The PyInstaller sidecar must be signed before it is bundled into the Tauri app.
 
 ```bash
-# Check readiness
-./liuant signing macos-status
-
-# Preflight
-./liuant signing macos-preflight
-
-# Sign (dry-run first)
-./liuant signing macos-sign --dry-run
-./liuant signing macos-sign --confirm true
-
-# Notarize (dry-run first)
-./liuant signing macos-notarize --dry-run
-./liuant signing macos-notarize --confirm true
+codesign --force --options runtime --sign "Developer ID Application: Your Name (XXXX)" release/build/liuant-backend
 ```
 
-**After signing**, the release manifest (`release/manifest.json`) is updated with signing metadata and checksums are regenerated.
+### 2. Build and Sign Tauri
+Configure Tauri to use your Developer ID by setting environment variables before running the build:
 
-## Build States
+```bash
+export APPLE_CERTIFICATE="Developer ID Application: Your Name (XXXX)"
+export APPLE_CERTIFICATE_PASSWORD="..."
+export APPLE_ID="..."
+export APPLE_PASSWORD="..."
+export APPLE_TEAM_ID="..."
 
-| State | signed | notarized | Usable |
-|---|---|---|---|
-| **Unsigned** (default) | `false` | `false` | Local development, may need right-click Open |
-| **Signed** | `true` | `false` | Fewer Gatekeeper warnings |
-| **Notarized** | `true` | `true` | No Gatekeeper warnings |
+cd apps/desktop
+npm run tauri build
+```
 
-## Safety
-
-- Secrets are never printed in output.
-- `signed=true` and `notarized=true` are never claimed unless verification succeeds.
-- `--confirm true` is required for real operations.
-- Unsigned build commands continue to return `signed: false, notarized: false`.
-
-## Community Builds vs Maintainer Builds
-
-| Aspect | Community Build | Maintainer Build |
-|---|---|---|
-| Signing | Unsigned | Optional, signed if credentials configured |
-| Notarization | None | Optional, after signing |
-| Apple Developer ID | Not required | Required for signing |
-| macOS Gatekeeper | Right-click Open needed | No warning if notarized |
-| Required for development | No | No |
+The resulting `.dmg` and `.app` files will be notarized automatically by the Tauri bundler if the credentials are valid.

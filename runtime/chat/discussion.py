@@ -27,7 +27,7 @@ SENSITIVE_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
-CLOUD_PROVIDERS = {"openai", "openrouter", "anthropic", "gemini", "groq", "mistral", "together", "fireworks"}
+CLOUD_PROVIDERS = {"openai", "openrouter", "anthropic", "gemini", "groq", "mistral", "together", "fireworks", "amazon_bedrock", "bedrock", "azure_openai"}
 
 ROLE_SELECTION_RULES: dict[str, list[str]] = {
     "coding": ["coding", "thinking"],
@@ -51,7 +51,9 @@ def redact_secrets(text: str) -> str:
 
 
 def _is_cloud_provider(provider: str) -> bool:
-    return provider.lower() in CLOUD_PROVIDERS
+    p_lower = provider.lower()
+    local_providers = {"ollama", "lmstudio", "local_hash_embedding", "whisper_local", "piper_local", "coqui_local", "hyperframes_skill"}
+    return p_lower not in local_providers and p_lower != ""
 
 
 def _select_roles(task_role: str, requested_roles: list[str] | None = None) -> list[str]:
@@ -324,3 +326,329 @@ def _synthesize_final_answer(
         return f"[Discussion synthesized locally]\n\n{best[:1000]}"
 
     return "Discussion completed but could not generate a final answer."
+
+
+def stream_discussion(
+    user_message: str,
+    roles: list[str] | None = None,
+    rounds: int = 2,
+    final_role: str = "thinking",
+    context: dict[str, Any] | None = None,
+    role_manager: ModelRoleManager | None = None,
+    model_hub: ModelHub | None = None,
+):
+    """Stream a model-to-model discussion as structured events.
+
+    Yields dicts with keys: type, discussion_id, role, provider, model,
+    content, status, fallback_used, warnings, estimated_tokens, estimated_cost.
+    """
+    role_manager = role_manager or ModelRoleManager()
+    model_hub = model_hub or ModelHub()
+
+    discussion_settings = role_manager.get_discussion_settings()
+    max_rounds = discussion_settings.get("discussion_mode_max_rounds", 4)
+    rounds = min(rounds, max_rounds)
+
+    safe_message = redact_secrets(user_message)
+    task_role = route_task_to_role(user_message)
+    selected_roles = _select_roles(task_role, roles)
+
+    if not selected_roles:
+        selected_roles = ["default"]
+
+    discussion_id = str(uuid4())
+    warnings: list[str] = []
+    fallback_used = False
+    total_tokens = 0
+    total_cost = 0.0
+
+    yield {
+        "type": "discussion_start",
+        "discussion_id": discussion_id,
+        "roles": selected_roles,
+        "rounds": rounds,
+        "final_role": final_role,
+    }
+
+    previous_answers: dict[str, str] = {}
+
+    for round_num in range(1, rounds + 1):
+        for role in selected_roles:
+            model_cfg = get_model_for_role(role, role_manager)
+            if not model_cfg["configured"]:
+                warnings.append(f"Role '{role}' not configured, skipping.")
+                yield {
+                    "type": "role_skip",
+                    "role": role,
+                    "reason": "not_configured",
+                }
+                continue
+
+            resolution = resolve_role_for_chat(role, role_manager, model_hub)
+            if resolution["status"] not in ("ready",):
+                warnings.append(f"Role '{role}' provider not ready: {resolution.get('message', '')}")
+                fallback_cfg = get_model_for_role("fallback", role_manager)
+                if fallback_cfg["configured"]:
+                    model_cfg = fallback_cfg
+                else:
+                    yield {
+                        "type": "role_skip",
+                        "role": role,
+                        "reason": resolution.get("status", "not_ready"),
+                    }
+                    continue
+
+            yield {
+                "type": "role_start",
+                "role": role,
+                "round": round_num,
+                "provider": model_cfg["provider"],
+                "model": model_cfg["model"],
+            }
+
+            prompt = _build_role_prompt(
+                role=role,
+                user_message=safe_message,
+                round_num=round_num,
+                previous_answers=previous_answers,
+                total_rounds=rounds,
+            )
+
+            role_content = []
+            role_fallback = False
+
+            try:
+                streaming_used = False
+                for chunk in model_hub.stream_text(
+                    prompt=prompt,
+                    system_prompt=_build_system_prompt(role, round_num),
+                    provider_name=model_cfg["provider"],
+                    model=model_cfg["model"],
+                    role=role,
+                ):
+                    if chunk["type"] == "token":
+                        role_content.append(chunk["content"])
+                        yield {
+                            "type": "role_token",
+                            "role": role,
+                            "round": round_num,
+                            "content": chunk["content"],
+                        }
+                        streaming_used = True
+                    elif chunk["type"] == "error":
+                        yield {
+                            "type": "role_error",
+                            "role": role,
+                            "content": chunk["content"],
+                        }
+                    elif chunk["type"] == "metadata":
+                        pass
+                    elif chunk["type"] == "done":
+                        break
+
+                full_text = "".join(role_content)
+                if full_text:
+                    previous_answers[role] = full_text
+                    est_tokens = len(full_text) // 4
+                    total_tokens += est_tokens
+                    est_cost = est_tokens * 0.00001 if _is_cloud_provider(model_cfg["provider"]) else 0.0
+                    try:
+                        from runtime.usage import UsageTracker
+                        UsageTracker().record_discussion_round(
+                            discussion_id=discussion_id,
+                            round_number=round_num,
+                            phase="initial",
+                            role=role,
+                            provider=model_cfg["provider"],
+                            model=model_cfg["model"],
+                            input_tokens=est_tokens // 2,
+                            output_tokens=est_tokens // 2,
+                            total_tokens=est_tokens,
+                            estimated_cost=round(est_cost, 6),
+                            exact_cost_available=False,
+                            fallback_used=role_fallback,
+                            status="completed",
+                        )
+                    except Exception:
+                        pass
+                    yield {
+                        "type": "role_done",
+                        "role": role,
+                        "round": round_num,
+                        "status": "completed",
+                        "fallback_used": role_fallback,
+                        "estimated_tokens": est_tokens,
+                    }
+                elif not streaming_used:
+                    fallback_used = True
+                    role_fallback = True
+                    fallback_cfg = get_model_for_role("fallback", role_manager)
+                    if fallback_cfg["configured"] and fallback_cfg["role"] != role:
+                        fallback_response = model_hub.generate_text(
+                            prompt=prompt,
+                            system_prompt=_build_system_prompt(role, round_num),
+                            provider_name=fallback_cfg["provider"],
+                            model=fallback_cfg["model"],
+                        )
+                        if fallback_response.get("status") == "completed":
+                            ft = fallback_response.get("text", "")
+                            previous_answers[role] = ft
+                            est_tokens = len(ft) // 4
+                            total_tokens += est_tokens
+                            yield {
+                                "type": "role_token",
+                                "role": role,
+                                "round": round_num,
+                                "content": ft[:500],
+                            }
+                            yield {
+                                "type": "role_done",
+                                "role": role,
+                                "round": round_num,
+                                "status": "fallback",
+                                "fallback_used": True,
+                                "estimated_tokens": est_tokens,
+                            }
+                            warnings.append(f"Role '{role}' fell back to {fallback_cfg['provider']}.")
+                        else:
+                            yield {
+                                "type": "role_done",
+                                "role": role,
+                                "round": round_num,
+                                "status": f"failed: {fallback_response.get('status', 'unknown')}",
+                                "fallback_used": True,
+                            }
+                    else:
+                        yield {
+                            "type": "role_done",
+                            "role": role,
+                            "round": round_num,
+                            "status": "failed",
+                            "fallback_used": False,
+                        }
+            except Exception as exc:
+                fallback_used = True
+                yield {
+                    "type": "role_error",
+                    "role": role,
+                    "content": str(exc)[:100],
+                }
+                warnings.append(f"Role '{role}' failed: {str(exc)[:100]}")
+
+    yield {
+        "type": "final_start",
+        "role": final_role,
+    }
+
+    final_model_cfg = get_model_for_role(final_role, role_manager)
+    if not final_model_cfg["configured"]:
+        final_model_cfg = get_model_for_role("default", role_manager)
+
+    final_content = []
+    if final_model_cfg["configured"]:
+        other_answers = "\n\n".join(
+            f"[{r}]: {a[:800]}" for r, a in previous_answers.items() if a
+        )
+        final_prompt = (
+            f"Synthesize the best response from these role contributions:\n\n"
+            f"User request: {safe_message}\n\n"
+            f"Role contributions:\n{other_answers}\n\n"
+            f"Provide a clear, comprehensive final answer that combines the best insights."
+        )
+        try:
+            for chunk in model_hub.stream_text(
+                prompt=final_prompt,
+                system_prompt="You are synthesizing the best response from multiple expert roles. Be clear, comprehensive, and actionable.",
+                provider_name=final_model_cfg["provider"],
+                model=final_model_cfg["model"],
+                role=final_role,
+            ):
+                if chunk["type"] == "token":
+                    final_content.append(chunk["content"])
+                    yield {
+                        "type": "final_token",
+                        "content": chunk["content"],
+                    }
+                elif chunk["type"] == "done":
+                    break
+        except Exception:
+            pass
+
+    final_text = "".join(final_content)
+    if not final_text and previous_answers:
+        best = max(previous_answers.values(), key=len)
+        final_text = f"[Discussion synthesized locally]\n\n{best[:1000]}"
+        for chunk in final_text.split(" "):
+            yield {"type": "final_token", "content": chunk + " "}
+
+    est_final_tokens = len(final_text) // 4 if final_text else 0
+    total_tokens += est_final_tokens
+    est_final_cost = est_final_tokens * 0.00001 if _is_cloud_provider(final_model_cfg.get("provider", "")) else 0.0
+
+    try:
+        from runtime.usage import UsageTracker
+        UsageTracker().record_discussion_round(
+            discussion_id=discussion_id,
+            round_number=rounds + 1,
+            phase="final",
+            role=final_role,
+            provider=final_model_cfg.get("provider", ""),
+            model=final_model_cfg.get("model", ""),
+            input_tokens=est_final_tokens // 2,
+            output_tokens=est_final_tokens // 2,
+            total_tokens=est_final_tokens,
+            estimated_cost=round(est_final_cost, 6),
+            exact_cost_available=False,
+            fallback_used=False,
+            status="completed" if final_text else "empty",
+        )
+    except Exception:
+        pass
+
+    cloud_roles = [r for r in selected_roles if _is_cloud_provider(get_model_for_role(r, role_manager).get("provider", ""))]
+    if cloud_roles:
+        total_cost = total_tokens * 0.00001
+    else:
+        total_cost = 0.0
+
+    # Emit cumulative usage update (v1.6.0)
+    yield {
+        "type": "usage_update",
+        "estimated_tokens": total_tokens,
+        "estimated_cost": round(total_cost, 6),
+        "estimated": bool(cloud_roles),
+        "cumulative": True,
+    }
+
+    # Record final usage event (v1.6.0)
+    try:
+        from runtime.usage import UsageTracker
+        UsageTracker().record_usage(
+            provider=",".join([get_model_for_role(r, role_manager).get("provider", "") for r in selected_roles]),
+            model="discussion",
+            model_role=",".join(selected_roles),
+            feature="discussion",
+            estimated_input_tokens=total_tokens // 2,
+            estimated_output_tokens=total_tokens // 2,
+            estimated_total_tokens=total_tokens,
+            estimated_cost=round(total_cost, 6),
+            estimated=bool(cloud_roles),
+            fallback_used=fallback_used,
+            status=status,
+            discussion_id=discussion_id,
+        )
+    except Exception:
+        pass  # Usage recording is best-effort
+
+    status = "completed"
+    if fallback_used:
+        status = "partial"
+
+    yield {
+        "type": "discussion_done",
+        "status": status,
+        "fallback_used": fallback_used,
+        "warnings": warnings,
+        "estimated_tokens": total_tokens,
+        "estimated_cost": round(total_cost, 6),
+    }

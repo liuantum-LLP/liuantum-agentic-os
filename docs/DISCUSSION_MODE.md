@@ -1,6 +1,16 @@
-# Discussion Mode — Liuant Agentic OS v1.1.0
+# Discussion Mode — Liuant Agentic OS v1.4.0
 
 Discussion Mode lets multiple model roles collaborate on a single response. Each model gives an independent answer, reviews others, and a final model synthesizes the best response.
+
+## Streaming (v1.4.0)
+
+Discussion Mode now supports real-time SSE streaming via `stream_discussion()`. See [DISCUSSION_STREAMING.md](DISCUSSION_STREAMING.md) for full details.
+
+```bash
+./liuant chat --discussion --stream "Plan Liuant launch"
+```
+
+API: `POST /api/chat/discussion-stream` returns `text/event-stream` with role cards, progressive tokens, and usage updates.
 
 ## How It Works
 
@@ -46,6 +56,7 @@ POST /api/chat/discussion        { "message": "...", "roles": ["thinking", "plan
 - Select number of rounds (1-4)
 - View discussion transcript in expandable summary
 - See role chips, warnings, and cost notes
+- **Streaming Mode (v1.4.0)**: Role cards showing provider/model/status per contribution, usage/cost panel, stop button, "Models discussing (streaming)..." loading state
 
 ## Safety
 

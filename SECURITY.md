@@ -4,15 +4,14 @@
 
 | Version | Supported          |
 |---------|--------------------|
-| 0.8.x   | ✅ Active development |
-| < 0.8   | ⚠️ Legacy          |
+| 3.1.x   | ✅ Active development |
+| < 3.0   | ⚠️ Legacy          |
 
 ## Reporting a Vulnerability
 
 **Do not file a public issue for security vulnerabilities.**
 
 Report vulnerabilities privately to: `admin@liuantum.com`
-**(Replace this email with a real security contact before public release.)**
 
 Please include:
 - Description of the vulnerability
@@ -31,6 +30,9 @@ We will acknowledge receipt within 48 hours and work on a fix before public disc
 
 ## Approval-Gated External Actions
 
+- **Browser Automation:** Actions affecting browser state require explicit approval.
+- **Desktop Automation:** Execution of local apps or scripts is gated by the Approval Queue.
+- **Voice Automation:** Voice inputs are simulation-first by default; no always-listening without explicit enabling.
 - Social publishing is disabled by default and requires explicit draft approval plus manual per-connector enablement.
 - Email sending is not implemented.
 - Telegram auto-reply is disabled by default; reply drafts require approval.

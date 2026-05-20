@@ -1,38 +1,21 @@
-# Signing Pipeline
+# Code Signing
 
-> **Optional maintainer workflow.** Community builds are unsigned and do not require this.
+**Code signing is completely optional for Liuant Agentic OS.** 
 
-## Overview
+Community builds compiled from the source code are unverified and unsigned. The core philosophy of this OS relies on local-first transparency rather than centralized trust.
 
-Liuant includes a complete macOS code-signing and notarization pipeline wrapping Apple's `codesign`, `notarytool`, and `stapler` tools. It is designed for **project maintainers** who want to distribute signed builds without Gatekeeper warnings. It is **not required** for contributors, local development, or community builds.
+## Unsigned Builds
+If you download or compile an unsigned build:
+- **macOS**: Right-click the application bundle and select **Open** to bypass Gatekeeper.
+- **Windows**: Accept the SmartScreen warning by clicking **More Info** -> **Run Anyway**.
+- **Linux**: Mark the AppImage as executable (`chmod +x`).
 
-## Quick Start
+## Signed Releases
+Official binaries distributed on the GitHub Releases page are signed by the core maintainers to verify their origin.
 
+To inspect the signing status of your local environment:
 ```bash
-./liuant signing macos-status
-./liuant signing macos-preflight
-./liuant signing macos-sign --dry-run
-./liuant signing macos-sign --confirm true
-./liuant signing macos-notarize --dry-run
-./liuant signing macos-notarize --confirm true
+./liuant signing status
 ```
 
-## Community Build
-
-Community builds remain unsigned by default:
-
-```bash
-./liuant release unsigned-artifacts
-./liuant release verify-artifacts
-./liuant release polish-check
-```
-
-All return `signed: false, notarized: false`. That is the expected default.
-
-## For Contributors
-
-- You do not need Apple Developer credentials.
-- You do not need to sign builds.
-- Unsigned DMG works for local development.
-
-See `docs/MACOS_SIGNING_NOTARIZATION.md` for full maintainer documentation.
+This will truthfully report whether your current executable has valid signatures attached.

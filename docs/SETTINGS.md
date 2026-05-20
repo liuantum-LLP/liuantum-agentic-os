@@ -41,7 +41,21 @@ Introduced in v0.6.3, enhanced with helper text and empty states in v0.6.4.
 - **Available registry skills**
 - **Install status** per skill
 - **Install/remove** skill buttons
+- **Skill pack management** — import, inspect, validate, lint, upgrade, rollback
+- **Pack compatibility** — duplicate detection, permission conflicts, version mismatches
+- **Pack recommendations** — local-only suggestions with factor breakdown
+- **URL import staging** — preview, staged import, staged install (separate confirmations)
 - *Advanced*: Custom skill registry configuration
+
+### 6b. Workflows (v2.4.0+)
+- **Registered workflows** list with step details
+- **Workflow preview** — step-by-step readiness check without execution
+- **Workflow permissions** — aggregated permission review across all steps
+- **Workflow run history** — list, get, export runs as JSON or markdown
+- **Workflow audit logs** — metadata-only records with secret redaction
+- **Dry-run** — execution plan with input dependency resolution
+- **Failure recovery** — rerun preview from failed step
+- *Requires confirmation*: Running any workflow (never auto-executed)
 
 ### 7. Memory & Knowledge
 - **Memory entries** list with search

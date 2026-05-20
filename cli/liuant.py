@@ -62,7 +62,7 @@ EXAMPLES = {
     "update-check": ["liuant update-check"],
     "release-check": ["liuant release-check"],
     "desktop": ["liuant desktop status", "liuant desktop icons-check", "liuant desktop build-guide", "liuant desktop native-check", "liuant desktop build --frontend-only", "liuant desktop backend-status", "liuant desktop backend-mode", "liuant desktop first-run-check", "liuant desktop polish-check", "liuant desktop one-click-check", "liuant desktop launch-check"],
-    "release": ["liuant release manifest", "liuant release checksum", "liuant release artifacts", "liuant release unsigned-artifacts", "liuant release unsigned-build-check", "liuant release verify-artifacts", "liuant release desktop-report", "liuant release build-report", "liuant release macos-qa", "liuant release polish-check", "liuant release candidate-check"],
+    "release": ["liuant release manifest", "liuant release checksum", "liuant release artifacts", "liuant release unsigned-artifacts", "liuant release unsigned-build-check", "liuant release verify-artifacts", "liuant release desktop-report", "liuant release build-report", "liuant release macos-qa", "liuant release polish-check", "liuant release candidate-check", "liuant release ecosystem-check", "liuant release public-release-check"],
     "signing": ["liuant signing status", "liuant signing check", "liuant signing docs", "liuant signing macos-status", "liuant signing macos-guide", "liuant signing macos-export-env-template", "liuant signing macos-preflight", "liuant signing macos-sign --dry-run", "liuant signing macos-notarize --dry-run"],
     "sidecar": ["liuant sidecar status", "liuant sidecar build --confirm", "liuant sidecar check", "liuant sidecar run", "liuant sidecar stop --confirm"],
     "update-info": ["liuant update-info"],
@@ -107,6 +107,9 @@ EXAMPLES = {
     "workspace": ["liuant workspace list", "liuant workspace create client-a", "liuant workspace set-default client-a"],
     "exports": ["liuant exports list", "liuant exports show <id>"],
     "onboarding": ["liuant onboarding status", "liuant onboarding complete-step welcome"],
+    "voice": ["liuant voice status", "liuant voice settings", "liuant voice enable --confirm true", "liuant voice test-wake 'Hey Liuant, list workflows'", "liuant voice say 'Hello world'"],
+    "browser": ["liuant browser status", "liuant browser enable --confirm true", "liuant browser disable"],
+    "search": ["liuant search status", "liuant search providers"],
 }
 
 
@@ -168,6 +171,10 @@ def build_parser() -> argparse.ArgumentParser:
         "workspace",
         "exports",
         "onboarding",
+        "usage",
+        "voice",
+        "browser",
+        "search",
     ):
         area_parser = sub.add_parser(area)
         area_parser.add_argument("command", nargs="?")
@@ -256,6 +263,14 @@ def dispatch(args: argparse.Namespace) -> Any:
             return release.desktop_one_click_check()
         if command == "launch-check":
             return release.desktop_launch_check()
+        if command == "safe-apps":
+            from runtime.automation.desktop import DesktopAutomationManager
+            return DesktopAutomationManager().list_safe_apps()
+        if command == "open-app" and rest:
+            from runtime.automation.desktop import DesktopAutomationManager
+            _, options = parse_cli_options(rest[1:])
+            confirm = options.get("confirm", "false").lower() in {"1", "true", "yes", "on"}
+            return DesktopAutomationManager().open_app(rest[0], confirm=confirm)
         return {"commands": ["status", "check", "icons-check", "icons-generate", "native-check", "rust-check", "tauri-check", "build-guide", "build-report", "dev", "build", "backend-status", "backend-mode", "backend-start", "backend-stop", "backend-restart", "package-info", "first-run-check", "polish-check", "one-click-check", "launch-check"]}
     if args.area == "release":
         release = ReleaseManager()
@@ -283,7 +298,11 @@ def dispatch(args: argparse.Namespace) -> Any:
             return release.desktop_polish_check()
         if command == "candidate-check":
             return release.desktop_v1_candidate_check()
-        return {"commands": ["manifest", "checksum", "artifacts", "unsigned-artifacts", "verify-artifacts", "notes", "desktop-report", "build-report", "unsigned-build-check", "macos-qa", "polish-check", "candidate-check"]}
+        if command == "ecosystem-check":
+            return release.ecosystem_check()
+        if command == "public-release-check":
+            return release.public_release_check()
+        return {"commands": ["manifest", "checksum", "artifacts", "unsigned-artifacts", "verify-artifacts", "notes", "desktop-report", "build-report", "unsigned-build-check", "macos-qa", "polish-check", "candidate-check", "ecosystem-check", "public-release-check"]}
     if args.area == "signing":
         release = ReleaseManager()
         if command == "status":
@@ -406,7 +425,47 @@ def dispatch(args: argparse.Namespace) -> Any:
         from runtime.model_router import route_task_to_role
         message, options = parse_cli_options([command] + rest if command else rest)
         if not message:
-            return {"commands": ['chat "message"', 'chat --model-role coding "Fix this error"', 'chat --discussion "Plan Liuant launch"', 'chat --stream "Explain Liuant"']}
+            return {"commands": ['chat "message"', 'chat --model-role coding "Fix this error"', 'chat --discussion "Plan Liuant launch"', 'chat --stream "Explain Liuant"', 'chat --discussion --stream "Plan launch"']}
+        if options.get("discussion") == "true" and options.get("stream") == "true":
+            from runtime.chat.discussion import stream_discussion
+            roles_str = options.get("roles", "")
+            roles = [r.strip() for r in roles_str.split(",")] if roles_str else None
+            rounds = parse_int(options.get("rounds"), 2)
+            final_role = options.get("final_role", "thinking")
+            print("Discussion started...", flush=True)
+            final_text = []
+            warnings = []
+            usage_info = {}
+            for chunk in stream_discussion(user_message=message, roles=roles, rounds=rounds, final_role=final_role):
+                if chunk["type"] == "discussion_start":
+                    print(f"Roles: {', '.join(chunk['roles'])} | Rounds: {chunk['rounds']}", flush=True)
+                elif chunk["type"] == "role_start":
+                    print(f"\n--- {chunk['role'].title()} (round {chunk.get('round', 1)}) [{chunk['provider']}/{chunk['model']}] ---", flush=True)
+                elif chunk["type"] == "role_token":
+                    print(chunk["content"], end="", flush=True)
+                elif chunk["type"] == "role_done":
+                    print(f"\n[{chunk['status']}]", flush=True)
+                    if chunk.get("fallback_used"):
+                        warnings.append(f"Fallback used for {chunk['role']}")
+                elif chunk["type"] == "role_error":
+                    print(f"\nError: {chunk['content']}", flush=True)
+                elif chunk["type"] == "role_skip":
+                    print(f"[{chunk['role']} skipped: {chunk['reason']}]", flush=True)
+                elif chunk["type"] == "final_start":
+                    print(f"\n\n--- Final Answer ({chunk['role']}) ---", flush=True)
+                elif chunk["type"] == "final_token":
+                    final_text.append(chunk["content"])
+                    print(chunk["content"], end="", flush=True)
+                elif chunk["type"] == "usage_update":
+                    usage_info = chunk
+                elif chunk["type"] == "discussion_done":
+                    warnings.extend(chunk.get("warnings", []))
+            print("", flush=True)
+            if usage_info:
+                print(f"\n--- Usage: {usage_info.get('estimated_tokens', 0)} tokens, ~${usage_info.get('estimated_cost', 0):.6f} ({'estimated' if usage_info.get('estimated') else 'exact'}) ---", flush=True)
+            if warnings:
+                print(f"Warnings: {'; '.join(warnings)}", flush=True)
+            return {"status": "completed", "text": "".join(final_text), "warnings": warnings, "usage": usage_info}
         if options.get("discussion") == "true":
             from runtime.chat.discussion import run_discussion
             roles_str = options.get("roles", "")
@@ -502,6 +561,20 @@ def dispatch(args: argparse.Namespace) -> Any:
         manager = ModelManager()
         if command == "list":
             return manager.list()
+        if command == "providers":
+            return manager.hub.list_providers("text")
+        if command == "provider-status" and rest:
+            prov = rest[0]
+            row = manager.hub.get_provider(prov)
+            status = manager.hub._derive_status(row)
+            return {
+                "provider": row["id"],
+                "status": status,
+                "message": manager.hub._status_message(row, status),
+                "provider_config": manager.hub._sanitize(row),
+            }
+        if command == "provider-test" and rest:
+            return manager.test(rest[0])
         if command == "setup":
             return manager.setup()
         if command == "test":
@@ -512,7 +585,13 @@ def dispatch(args: argparse.Namespace) -> Any:
             return manager.set_default(rest[0])
         if command == "set-fallback" and len(rest) >= 2:
             return manager.set_fallback(rest[0], rest[1])
-        return {"commands": ["list", "setup", "test", "status", "set-default <provider>", "set-fallback <provider> <model>", "roles", "role-set <role> --provider <p> --model <m>", "role-test <role>", "role-reset <role>", "discussion-status", "discussion-set <key> <value>"]}
+        if command == "provider-health":
+            from runtime.usage.provider_health import ProviderHealthTracker
+            tracker = ProviderHealthTracker()
+            if rest:
+                return tracker.get_health(rest[0])
+            return tracker.get_all_health()
+        return {"commands": ["list", "providers", "provider-status <provider>", "provider-test <provider>", "setup", "test", "status", "set-default <provider>", "set-fallback <provider> <model>", "roles", "role-set <role> --provider <p> --model <m>", "role-test <role>", "role-reset <role>", "discussion-status", "discussion-set <key> <value>", "provider-health", "provider-health <provider>"]}
     if args.area == "providers":
         hub = ModelHub()
         if command == "categories":
@@ -520,6 +599,76 @@ def dispatch(args: argparse.Namespace) -> Any:
         if command == "list":
             _, options = parse_cli_options(rest)
             return hub.list_providers(options.get("category"))
+        if command == "profiles":
+            return hub.list_profiles()
+        if command == "bedrock":
+            sub_cmd = rest[0] if rest else "status"
+            sub_rest = rest[1:]
+            if sub_cmd == "status":
+                from runtime.providers import bedrock
+                from runtime.providers.registry import mask_secret
+                masked_creds = {k: mask_secret(v) for k, v in bedrock.get_aws_credentials().items()}
+                return {"provider": "amazon_bedrock", "status": bedrock.status(), "credentials": masked_creds}
+            if sub_cmd == "setup-guide":
+                return {
+                    "provider": "amazon_bedrock",
+                    "guide": [
+                        "To set up Amazon Bedrock, configure the following AWS credentials in your environment, .env, or .env.local file:",
+                        "  AWS_ACCESS_KEY_ID=your_access_key_id",
+                        "  AWS_SECRET_ACCESS_KEY=your_secret_access_key",
+                        "  AWS_SESSION_TOKEN=your_session_token (optional)",
+                        "  AWS_DEFAULT_REGION=your_aws_region (defaults to us-east-1)",
+                        "  AWS_PROFILE=your_aws_profile (optional)",
+                        "Ensure your AWS credentials have permission to invoke Amazon Bedrock converse API and the specific models (e.g. us.amazon.nova-lite-v1:0)."
+                    ]
+                }
+            if sub_cmd == "test":
+                from runtime.providers import bedrock
+                test_model = None
+                if sub_rest and sub_rest[0] == "--model" and len(sub_rest) > 1:
+                    test_model = sub_rest[1]
+                elif len(sub_rest) > 0 and not sub_rest[0].startswith("-"):
+                    test_model = sub_rest[0]
+                return bedrock.test(model_id=test_model)
+            if sub_cmd == "models":
+                return {
+                    "provider": "amazon_bedrock",
+                    "models": ["us.amazon.nova-lite-v1:0", "us.amazon.nova-micro-v1:0", "us.amazon.nova-pro-v1:0"]
+                }
+            if sub_cmd == "regions":
+                return {
+                    "provider": "amazon_bedrock",
+                    "regions": ["us-east-1", "us-west-2", "eu-central-1", "ap-northeast-1"]
+                }
+            return {"commands": ["status", "setup-guide", "test [--model MODEL_ID]", "models", "regions"]}
+        if command == "openrouter":
+            sub_cmd = rest[0] if rest else "status"
+            if sub_cmd == "setup-guide":
+                return {
+                    "provider": "openrouter",
+                    "guide": [
+                        "To set up OpenRouter, configure the following API key in your environment, .env, or .env.local file:",
+                        "  OPENROUTER_API_KEY=your_openrouter_api_key",
+                        "You can configure default models using:",
+                        "  ./liuant providers set-model text openai/gpt-4.1-mini"
+                    ]
+                }
+            if sub_cmd == "status":
+                row = hub.get_provider("openrouter")
+                return {"provider": "openrouter", "status": row["status"]}
+            return {"commands": ["status", "setup-guide"]}
+        if command == "profile-status" and rest:
+            prov = rest[0]
+            row = hub.get_provider(prov)
+            status = hub._derive_status(row)
+            return {
+                "profile": row["id"],
+                "status": status,
+                "message": hub._status_message(row, status),
+                "provider_config": hub._sanitize(row),
+            }
+        if command == "profile-test" and rest:
+            return hub.test_provider(rest[0])
         if command == "status":
             return hub.get_status()
         if command == "show" and rest:
@@ -536,7 +685,7 @@ def dispatch(args: argparse.Namespace) -> Any:
             return hub.set_default_model(rest[0], rest[1])
         if command == "set-fallback" and len(rest) >= 2:
             return hub.set_fallback_provider(rest[0], rest[1])
-        return {"commands": ["categories", "list --category <category>", "status", "show <provider>", "test <provider>", "enable <provider>", "disable <provider>", "set-default <category> <provider>", "set-model <category> <model>", "set-fallback <category> <provider>"]}
+        return {"commands": ["categories", "list --category <category>", "status", "show <provider>", "test <provider>", "enable <provider>", "disable <provider>", "set-default <category> <provider>", "set-model <category> <model>", "set-fallback <category> <provider>", "bedrock <command>", "openrouter <command>", "profiles", "profile-status <profile>", "profile-test <profile>"]}
     if args.area == "text":
         hub = ModelHub()
         if command == "providers":
@@ -969,6 +1118,34 @@ def dispatch(args: argparse.Namespace) -> Any:
         if command == "run-show" and rest:
             return scheduler.run_show(rest[0])
         return {"commands": ["status", "due", "tick", "run-due", "runs", "run-show <run_id>"]}
+    
+    if args.area == "browser":
+        from runtime.automation.browser import BrowserAutomationManager
+        manager = BrowserAutomationManager()
+        if command == "status":
+            return manager.status()
+        if command == "enable":
+            _, options = parse_cli_options(rest)
+            if options.get("confirm", "false").lower() in {"1", "true", "yes", "on"}:
+                from runtime.automation.browser_settings import update_browser_settings
+                update_browser_settings({"browser_automation_enabled": True})
+                return {"status": "enabled"}
+            return {"status": "blocked", "message": "Requires --confirm true"}
+        if command == "disable":
+            from runtime.automation.browser_settings import update_browser_settings
+            update_browser_settings({"browser_automation_enabled": False})
+            return {"status": "disabled"}
+        return {"commands": ["status", "enable --confirm true", "disable"]}
+
+    if args.area == "search":
+        from runtime.automation.search import SearchManager
+        manager = SearchManager()
+        if command == "status":
+            return manager.provider_status("configured")
+        if command == "providers":
+            return manager.PROVIDERS
+        return {"commands": ["status", "providers"]}
+
     if args.area == "approvals":
         manager = ApprovalManager()
         if command == "list":
@@ -1007,6 +1184,52 @@ def dispatch(args: argparse.Namespace) -> Any:
         if command == "agent-runs":
             return AgentRunner().list_runs()
         return {"commands": ["list", "show <id>", "agent-runs"]}
+    if args.area == "voice":
+        from runtime.voice.settings import get_voice_settings, update_voice_setting
+        from runtime.voice.wake import detect_wake_phrase
+        from runtime.voice.tts import get_tts_provider
+        from runtime.voice.session import VoiceSessionManager
+        
+        if command == "status":
+            return VoiceSessionManager().get_status()
+        if command == "settings":
+            return get_voice_settings()
+        if command == "enable":
+            _, options = parse_cli_options(rest)
+            if options.get("confirm", "false").lower() not in {"1", "true", "yes", "on"}:
+                return {"status": "error", "message": "You must use --confirm true to enable the voice assistant."}
+            return update_voice_setting("voice_enabled", True)
+        if command == "disable":
+            return update_voice_setting("voice_enabled", False)
+        if command == "wake-enable":
+            _, options = parse_cli_options(rest)
+            if options.get("confirm", "false").lower() not in {"1", "true", "yes", "on"}:
+                return {"status": "error", "message": "You must use --confirm true to enable wake listening."}
+            return update_voice_setting("wake_listening_enabled", True)
+        if command == "wake-disable":
+            return update_voice_setting("wake_listening_enabled", False)
+        if command == "set-name" or (command == "name" and rest and rest[0] == "set"):
+            name = rest[1] if command == "name" else rest[0] if rest else None
+            if not name:
+                return {"status": "error", "message": "Please provide a name."}
+            return update_voice_setting("assistant_name", name)
+        if command == "test-wake":
+            transcript = " ".join(rest)
+            settings = get_voice_settings()
+            return detect_wake_phrase(transcript, settings.get("wake_phrases", []))
+        if command in ("speak", "say"):
+            text = " ".join(rest)
+            settings = get_voice_settings()
+            tts = get_tts_provider(settings.get("tts_provider", "mock"))
+            return tts.speak(text)
+        if command in ("session", "simulate"):
+            _, options = parse_cli_options([command] + rest)
+            transcript = options.get("transcript") or " ".join(r for r in rest if not r.startswith("--"))
+            if command == "session" and rest and rest[0] == "simulate":
+                transcript = options.get("transcript") or " ".join(r for r in rest[1:] if not r.startswith("--"))
+            return VoiceSessionManager().simulate_voice_command(transcript)
+        
+        return {"commands": ["status", "settings", "enable --confirm true", "disable", "wake-enable --confirm true", "wake-disable", "set-name <name>", "test-wake <transcript>", "speak <text>", "simulate <transcript>"]}
     if args.area == "settings":
         manager = SettingsManager()
         if command == "list":
@@ -1026,20 +1249,432 @@ def dispatch(args: argparse.Namespace) -> Any:
             return manager.rules_status()
         return {"commands": ["status", "set safe|developer|full_automation", "rules"]}
     if args.area == "skills":
-        manager = SkillManager()
-        if command == "available":
-            return manager.available_skills()
+        from runtime.skills import (
+            approve_skill_permissions,
+            create_skill_from_template,
+            disable_skill,
+            discover_skills,
+            enable_skill,
+            get_audit_logs,
+            get_latest_audit,
+            get_skill,
+            get_skill_templates,
+            install_skill,
+            list_installed_skills,
+            run_skill,
+            search_skills,
+            skill_permissions,
+            skill_status,
+            uninstall_skill,
+            upgrade_skill,
+        )
+        from runtime.skills.validator import validate_skill
+        _, options = parse_cli_options([command] + rest if command else rest)
         if command == "list":
-            return manager.list()
+            return {"skills": list_installed_skills()}
+        if command == "installed":
+            return {"skills": list_installed_skills()}
+        if command == "validate" and rest:
+            return validate_skill(rest[0])
         if command == "install" and rest:
-            return manager.install(rest[0])
+            return install_skill(rest[0], upgrade=options.get("upgrade") == "true")
         if command == "enable" and rest:
-            return manager.set_enabled(rest[0], True)
+            return enable_skill(rest[0])
         if command == "disable" and rest:
-            return manager.set_enabled(rest[0], False)
+            return disable_skill(rest[0])
         if command == "uninstall" and rest:
-            return manager.uninstall(rest[0])
-        return {"commands": ["available", "list", "install <skill_name>", "enable <skill_name>", "disable <skill_name>", "uninstall <skill_name>"]}
+            return uninstall_skill(rest[0], confirm=options.get("confirm") == "true")
+        if command == "status" and rest:
+            return skill_status(rest[0])
+        if command == "permissions" and rest:
+            return skill_permissions(rest[0])
+        if command == "approve-permissions" and rest:
+            perms = options.get("permissions", "").split(",")
+            return approve_skill_permissions(rest[0], perms, confirm=options.get("confirm") == "true")
+        if command == "run" and rest:
+            inputs = {}
+            input_str = options.get("input", "")
+            if input_str:
+                import json as _json
+                try:
+                    inputs = _json.loads(input_str)
+                except _json.JSONDecodeError:
+                    return {"status": "error", "message": "Invalid JSON for --input"}
+            dry_run = options.get("dry-run", "true").lower() == "true"
+            timeout = int(options.get("timeout", "30"))
+            return run_skill(rest[0], inputs, dry_run=dry_run, timeout=timeout)
+        if command == "templates":
+            return {"templates": get_skill_templates()}
+        if command == "search":
+            query = rest[0] if rest else ""
+            return {"results": search_skills(query)}
+        if command == "discover":
+            path = rest[0] if rest else ""
+            paths = [path] if path else None
+            return {"discovered": discover_skills(paths)}
+        if command == "create" and rest:
+            new_id = rest[0]
+            template = options.get("template", "")
+            name = options.get("name", new_id.replace("-", " ").title())
+            if not template:
+                return {"status": "error", "message": "Provide --template <template_id>"}
+            return create_skill_from_template(template, new_id, name)
+        if command == "upgrade" and rest:
+            return upgrade_skill(rest[0], confirm=options.get("confirm") == "true", force=options.get("force") == "true")
+        if command == "audit":
+            skill_id = rest[0] if rest else None
+            latest = options.get("latest") == "true"
+            if latest:
+                return {"latest": get_latest_audit(skill_id)}
+            return {"audit_logs": get_audit_logs(skill_id)}
+        if command == "pack":
+            from runtime.skills.packs import (
+                check_missing_dependencies,
+                decode_pack,
+                dependency_install_plan,
+                diff_packs,
+                encode_pack,
+                export_base64_pack,
+                export_pack,
+                export_pack_analytics,
+                generate_key,
+                get_pack_analytics,
+                get_trust_state,
+                import_base64_pack,
+                import_pack,
+                install_pack,
+                inspect_pack,
+                list_imported_packs,
+                list_keys,
+                preview_install,
+                remove_pack,
+                resolve_pack_dependencies,
+                rollback_pack,
+                sign_pack,
+                trust_key,
+                untrust_key,
+                upgrade_pack,
+                upgrade_plan,
+                validate_pack,
+                verify_pack_signature,
+            )
+            pack_cmd = rest[0] if rest else ""
+            pack_rest = rest[1:]
+            if pack_cmd == "validate" and pack_rest:
+                return validate_pack(pack_rest[0])
+            if pack_cmd == "inspect" and pack_rest:
+                return inspect_pack(pack_rest[0])
+            if pack_cmd == "export":
+                skill_ids_str = options.get("skills", "")
+                if not skill_ids_str:
+                    return {"status": "error", "message": "Provide --skills id1,id2,..."}
+                skill_ids = [s.strip() for s in skill_ids_str.split(",") if s.strip()]
+                output = options.get("output", f"workspace/outputs/skill-packs/{options.get('pack-id', 'pack')}.liuantskillpack")
+                pack_meta = {
+                    "pack_id": options.get("pack-id", "unnamed-pack"),
+                    "name": options.get("name", "Unnamed Pack"),
+                    "version": options.get("version", "0.1.0"),
+                    "description": options.get("description", ""),
+                    "author": options.get("author", "Unknown"),
+                    "license": options.get("license", "MIT"),
+                    "tags": [t.strip() for t in options.get("tags", "").split(",") if t.strip()],
+                }
+                return export_pack(skill_ids, output, pack_meta)
+            if pack_cmd == "import" and pack_rest:
+                return import_pack(pack_rest[0])
+            if pack_cmd == "install" and pack_rest:
+                selected = options.get("skills", "")
+                selected_skills = [s.strip() for s in selected.split(",") if s.strip()] if selected else None
+                return install_pack(pack_rest[0], selected_skills)
+            if pack_cmd == "list":
+                return {"packs": list_imported_packs()}
+            if pack_cmd == "remove" and pack_rest:
+                return remove_pack(pack_rest[0], confirm=options.get("confirm") == "true")
+            if pack_cmd == "dependencies" and pack_rest:
+                return resolve_pack_dependencies(pack_rest[0])
+            if pack_cmd == "install-plan" and pack_rest:
+                return dependency_install_plan(pack_rest[0])
+            if pack_cmd == "upgrade" and pack_rest:
+                return upgrade_pack(pack_rest[0], confirm=options.get("confirm") == "true", force=options.get("force") == "true")
+            if pack_cmd == "upgrade-plan" and pack_rest:
+                return upgrade_plan(pack_rest[0])
+            if pack_cmd == "rollback" and pack_rest:
+                return rollback_pack(pack_rest[0], confirm=options.get("confirm") == "true")
+            if pack_cmd == "diff" and len(pack_rest) >= 2:
+                return diff_packs(pack_rest[0], pack_rest[1], include_files=options.get("include-files") == "true")
+            if pack_cmd == "preview-install" and pack_rest:
+                return preview_install(pack_rest[0])
+            if pack_cmd == "verify" and pack_rest:
+                return verify_pack_signature(pack_rest[0])
+            if pack_cmd == "trust-status" and pack_rest:
+                return get_trust_state(pack_rest[0])
+            if pack_cmd == "sign" and pack_rest:
+                key_id = options.get("key", "")
+                if not key_id:
+                    return {"status": "error", "message": "Provide --key <key_id>"}
+                return sign_pack(pack_rest[0], key_id)
+            if pack_cmd == "encode" and pack_rest:
+                output = options.get("output", "")
+                return encode_pack(pack_rest[0], output if output else None)
+            if pack_cmd == "decode" and pack_rest:
+                output = options.get("output", "")
+                return decode_pack(pack_rest[0], output if output else None)
+            if pack_cmd == "import-base64" and pack_rest:
+                return import_base64_pack(pack_rest[0])
+            if pack_cmd == "export-base64" and pack_rest:
+                skill_ids_str = options.get("skills", "")
+                if not skill_ids_str:
+                    return {"status": "error", "message": "Provide --skills id1,id2,..."}
+                skill_ids = [s.strip() for s in skill_ids_str.split(",") if s.strip()]
+                output = options.get("output", f"workspace/outputs/skill-packs/{pack_rest[0]}.txt")
+                pack_meta = {
+                    "pack_id": pack_rest[0],
+                    "name": pack_rest[0].replace("-", " ").title(),
+                    "version": options.get("version", "0.1.0"),
+                    "description": "",
+                    "author": "Unknown",
+                    "license": "MIT",
+                    "tags": [],
+                }
+                return export_base64_pack(skill_ids, output, pack_meta)
+            if pack_cmd == "analytics":
+                pack_id = pack_rest[0] if pack_rest else None
+                fmt = options.get("export", "")
+                if fmt:
+                    return {"content": export_pack_analytics(fmt)}
+                return get_pack_analytics(pack_id)
+            if pack_cmd == "keys":
+                key_cmd = pack_rest[0] if pack_rest else ""
+                key_rest = pack_rest[1:]
+                if key_cmd == "generate":
+                    name = options.get("name", "local-maintainer")
+                    return generate_key(name)
+                if key_cmd == "list":
+                    return {"keys": list_keys()}
+                if key_cmd == "trust" and key_rest:
+                    return trust_key(key_rest[0], confirm=options.get("confirm") == "true")
+                if key_cmd == "untrust" and key_rest:
+                    return untrust_key(key_rest[0], confirm=options.get("confirm") == "true")
+                return {"commands": ["generate --name <name>", "list", "trust <key_id> --confirm true", "untrust <key_id> --confirm true"]}
+            return {"commands": ["validate <pack_path>", "inspect <pack_path>", "export --skills id1,id2 --pack-id <id> --name <name> --version <ver> --output <path>", "import <pack_path>", "install <pack_path> [--skills id1,id2]", "list", "remove <pack_id> --confirm true", "dependencies <pack_path>", "install-plan <pack_path>", "upgrade <pack_path> --confirm true [--force true]", "upgrade-plan <pack_path>", "rollback <pack_id> --confirm true", "diff <old> <new> [--include-files true]", "preview-install <pack_path>", "verify <pack_path>", "trust-status <pack_path>", "sign <source> --key <key_id>", "encode <pack_path> [--output <path>]", "decode <encoded_path> [--output <path>]", "import-base64 <encoded_path>", "export-base64 <pack_id> --skills id1,id2 [--output <path>]", "analytics [pack_id] [--export markdown|json|csv]", "keys <subcommand>"]}
+        if command == "workflow":
+            from runtime.skills.workflows import (
+                discover_workflows,
+                export_workflow_run,
+                get_workflow_run,
+                inspect_workflow,
+                list_workflow_runs,
+                list_workflows,
+                preview_rerun_from_step,
+                preview_workflow_run,
+                register_workflow,
+                run_workflow,
+                validate_workflow,
+                workflow_permission_summary,
+            )
+            from runtime.skills.workflow_audit import get_workflow_audit
+            wf_cmd = rest[0] if rest else ""
+            wf_rest = rest[1:]
+            if wf_cmd == "list":
+                return {"workflows": list_workflows()}
+            if wf_cmd == "discover":
+                paths_str = options.get("paths", "")
+                paths = [p.strip() for p in paths_str.split(",") if p.strip()] if paths_str else None
+                return discover_workflows(paths)
+            if wf_cmd == "validate" and wf_rest:
+                wf_path = wf_rest[0]
+                wf_id = options.get("workflow-id")
+                if wf_id:
+                    return validate_workflow(workflow_id=wf_id)
+                return validate_workflow(wf_path)
+            if wf_cmd == "inspect" and wf_rest:
+                wf_path = wf_rest[0]
+                wf_id = options.get("workflow-id")
+                if wf_id:
+                    return inspect_workflow(workflow_id=wf_id)
+                return inspect_workflow(wf_path)
+            if wf_cmd == "preview" and wf_rest:
+                wf_id = wf_rest[0]
+                inputs_str = options.get("input", "{}")
+                try:
+                    inputs = json.loads(inputs_str)
+                except json.JSONDecodeError:
+                    inputs = {}
+                return preview_workflow_run(wf_id, inputs=inputs)
+            if wf_cmd == "permissions" and wf_rest:
+                return workflow_permission_summary(wf_rest[0])
+            if wf_cmd == "run" and wf_rest:
+                wf_id = wf_rest[0]
+                dry_run = options.get("dry-run", "false") == "true"
+                confirmed = options.get("confirm", "false") == "true"
+                inputs_str = options.get("input", "{}")
+                try:
+                    inputs = json.loads(inputs_str)
+                except json.JSONDecodeError:
+                    inputs = {}
+                return run_workflow(workflow_id=wf_id, inputs=inputs, dry_run=dry_run, user_confirmed=confirmed or dry_run)
+            if wf_cmd == "audit":
+                wf_id = wf_rest[0] if wf_rest else None
+                latest = options.get("latest", "false") == "true"
+                if latest and wf_id:
+                    from runtime.skills.workflow_audit import get_latest_workflow_run
+                    return {"latest_run": get_latest_workflow_run(wf_id)}
+                return {"runs": get_workflow_audit(workflow_id=wf_id, limit=20)}
+            if wf_cmd == "runs" and wf_rest:
+                return {"runs": list_workflow_runs(workflow_id=wf_rest[0], limit=20)}
+            if wf_cmd == "runs":
+                return {"runs": list_workflow_runs(limit=20)}
+            if wf_cmd == "run-detail" and wf_rest:
+                run_data = get_workflow_run(wf_rest[0])
+                if not run_data:
+                    return {"status": "error", "message": f"Run '{wf_rest[0]}' not found"}
+                from runtime.skills.workflow_audit import get_workflow_steps
+                steps = get_workflow_steps(wf_rest[0])
+                return {"run": run_data, "steps": steps}
+            if wf_cmd == "export-run" and wf_rest:
+                fmt = options.get("format", "json")
+                return {"content": export_workflow_run(wf_rest[0], format=fmt)}
+            if wf_cmd == "rerun-plan" and wf_rest:
+                run_id = wf_rest[0]
+                from_step = options.get("from-step", "")
+                if not from_step:
+                    return {"status": "error", "message": "Provide --from-step <step_id>"}
+                return preview_rerun_from_step(run_id, from_step)
+            if wf_cmd == "discover":
+                paths_str = options.get("paths", "")
+                paths = [p.strip() for p in paths_str.split(",") if p.strip()] if paths_str else None
+                return discover_workflows(paths)
+            if wf_cmd == "register" and wf_rest:
+                return register_workflow(wf_rest[0])
+            return {"commands": ["list", "discover [--paths path1,path2]", "validate <workflow.json>", "validate --workflow-id <id>", "inspect <workflow.json>", "preview <workflow_id> [--input '{...}']", "permissions <workflow_id>", "run <workflow_id> [--dry-run true] [--confirm true] [--input '{...}']", "audit [workflow_id] [--latest]", "runs [workflow_id]", "run-detail <run_id>", "export-run <run_id> [--format json|markdown]", "rerun-plan <run_id> --from-step <step_id>", "register <workflow.json>"]}
+        if command == "compatibility":
+            from runtime.skills.compatibility import (
+                check_all_installed_compatibility,
+                check_compatibility,
+                load_compatibility_matrix,
+                save_compatibility_matrix,
+            )
+            compat_cmd = rest[0] if rest else ""
+            compat_rest = rest[1:]
+            if compat_cmd == "check" and compat_rest:
+                return check_compatibility(pack_path=compat_rest[0])
+            if compat_cmd == "check-pack" and compat_rest:
+                return check_compatibility(pack_id=compat_rest[0])
+            if compat_cmd == "check-all":
+                return check_all_installed_compatibility()
+            if compat_cmd == "save":
+                return save_compatibility_matrix()
+            if compat_cmd == "load":
+                return load_compatibility_matrix()
+            return {"commands": ["check <pack_path>", "check-pack <pack_id>", "check-all", "save", "load"]}
+        if command == "lint":
+            from runtime.skills.linter import apply_safe_lint_fixes, lint_pack
+            lint_cmd = rest[0] if rest else ""
+            lint_rest = rest[1:]
+            if lint_cmd:
+                strict = options.get("strict", "false") == "true"
+                fix_suggestions = options.get("fix-suggestions", "false") == "true"
+                apply_fixes = options.get("apply-safe-fixes", "false") == "true"
+                confirm = options.get("confirm", "false") == "true"
+                if apply_fixes:
+                    return apply_safe_lint_fixes(lint_cmd, confirm=confirm)
+                return lint_pack(lint_cmd, strict=strict, fix_suggestions=fix_suggestions)
+            return {"commands": ["<pack_path> [--strict true] [--fix-suggestions] [--apply-safe-fixes --confirm true]"]}
+        if command == "changelog":
+            from runtime.skills.changelog import (
+                generate_changelog,
+                generate_changelog_from_registry,
+                update_pack_changelog,
+            )
+            cl_cmd = rest[0] if rest else ""
+            cl_rest = rest[1:]
+            if cl_cmd == "generate" and len(cl_rest) >= 2:
+                return generate_changelog(cl_rest[0], cl_rest[1])
+            if cl_cmd == "from-registry" and cl_rest:
+                return generate_changelog_from_registry(cl_rest[0])
+            if cl_cmd == "update" and cl_rest:
+                entries_str = options.get("entries", "[]")
+                try:
+                    entries = json.loads(entries_str)
+                except json.JSONDecodeError:
+                    entries = []
+                return update_pack_changelog(cl_rest[0], entries)
+            return {"commands": ["generate <old_pack> <new_pack>", "from-registry <pack_id>", "update <source_dir> --entries '[...]'"]}
+        if command == "url-import":
+            from runtime.skills.url_import import (
+                clear_staging,
+                import_staged,
+                install_staged,
+                list_staged_packs,
+                preview_url_import,
+            )
+            url_cmd = rest[0] if rest else ""
+            url_rest = rest[1:]
+            if url_cmd == "preview" and url_rest:
+                return preview_url_import(url_rest[0])
+            if url_cmd == "import-staged" and url_rest:
+                return import_staged(url_rest[0], confirm=options.get("confirm") == "true")
+            if url_cmd == "install-staged" and url_rest:
+                return install_staged(url_rest[0], confirm=options.get("confirm") == "true")
+            if url_cmd == "import" and url_rest:
+                install = options.get("install", "false") == "true"
+                return preview_url_import(url_rest[0])
+            if url_cmd == "list":
+                return {"staged": list_staged_packs()}
+            if url_cmd == "clear":
+                return clear_staging()
+            return {"commands": ["preview <https_url>", "import-staged <staged_id> --confirm true", "install-staged <staged_id> --confirm true", "list", "clear"]}
+        if command == "recommend":
+            from runtime.skills.recommender import (
+                get_recommendations,
+                recommend_by_category,
+                recommend_low_risk_alternatives,
+                recommend_packs,
+                recommend_skills_for_workflow,
+            )
+            rec_cmd = rest[0] if rest else ""
+            rec_rest = rest[1:]
+            explain = options.get("explain", "false") == "true"
+            if rec_cmd == "packs":
+                limit = int(options.get("limit", "5"))
+                return {"recommendations": recommend_packs(limit=limit, explain=explain)}
+            if rec_cmd == "workflow" and rec_rest:
+                return recommend_skills_for_workflow(rec_rest[0])
+            if rec_cmd == "category" and rec_rest:
+                limit = int(options.get("limit", "5"))
+                return {"recommendations": recommend_by_category(rec_rest[0], limit=limit)}
+            if rec_cmd == "alternatives" and rec_rest:
+                return {"alternatives": recommend_low_risk_alternatives(rec_rest[0])}
+            if rec_cmd == "all":
+                query = rec_rest[0] if rec_rest else ""
+                limit = int(options.get("limit", "5"))
+                return get_recommendations(query=query, limit=limit, explain=explain)
+            if rec_cmd and not rec_cmd.startswith("-"):
+                limit = int(options.get("limit", "5"))
+                for_workflow = options.get("for-workflow", "")
+                return get_recommendations(query=rec_cmd, limit=limit, explain=explain, for_workflow=for_workflow)
+            return {"commands": ["packs [--limit 5] [--explain]", "workflow <workflow_id>", "category <tag> [--limit 5]", "alternatives <pack_id>", "all [query] [--limit 5] [--explain]", "<query> [--explain] [--for-workflow <id>]"]}
+        if command == "catalog":
+            from runtime.skills.packs import (
+                catalog_install,
+                refresh_catalog,
+                search_catalog,
+            )
+            catalog_cmd = rest[0] if rest else ""
+            catalog_rest = rest[1:]
+            if catalog_cmd == "refresh":
+                return refresh_catalog()
+            if catalog_cmd == "search" and catalog_rest:
+                return {"results": search_catalog(catalog_rest[0])}
+            if catalog_cmd == "install" and catalog_rest:
+                return catalog_install(catalog_rest[0])
+            if catalog_cmd == "inspect" and catalog_rest:
+                results = search_catalog(catalog_rest[0])
+                if results:
+                    return results[0]
+                return {"status": "error", "message": f"Pack '{catalog_rest[0]}' not found in catalog"}
+            return refresh_catalog()
+        return {"commands": ["list", "installed", "validate <path>", "install <path> [--upgrade true]", "enable <skill_id>", "disable <skill_id>", "uninstall <skill_id> --confirm true", "status <skill_id>", "permissions <skill_id>", "approve-permissions <skill_id> --permissions perm1,perm2 --confirm true", "run <skill_id> --input '{...}' [--timeout 30] [--dry-run true]", "templates", "search [query]", "discover [path]", "create <new_id> --template <template_id>", "upgrade <path> --confirm true", "audit [skill_id] [--latest]", "pack <subcommand>", "catalog <subcommand>"]}
     if args.area == "workspace":
         manager = WorkspaceManager()
         if command == "list":
@@ -1067,6 +1702,149 @@ def dispatch(args: argparse.Namespace) -> Any:
         if command == "complete-step" and rest:
             return manager.complete_step(rest[0])
         return {"commands": ["status", "reset", "complete-step <step>"]}
+    if args.area == "usage":
+        from runtime.usage import UsageTracker
+        tracker = UsageTracker()
+        if command == "summary":
+            _, options = parse_cli_options(rest)
+            ws = options.get("workspace")
+            return tracker.get_summary(workspace=ws)
+        if command == "today":
+            _, options = parse_cli_options(rest)
+            ws = options.get("workspace")
+            return tracker.get_today(workspace=ws)
+        if command == "by-provider":
+            _, options = parse_cli_options(rest)
+            ws = options.get("workspace")
+            return tracker.get_by_provider(workspace=ws)
+        if command == "by-role":
+            _, options = parse_cli_options(rest)
+            ws = options.get("workspace")
+            return tracker.get_by_role(workspace=ws)
+        if command == "reset":
+            _, options = parse_cli_options(rest)
+            return tracker.reset() if options.get("confirm") == "true" else {"status": "error", "message": "Set --confirm true to reset."}
+        if command == "budget":
+            return tracker.get_budget()
+        if command == "budget-set":
+            _, options = parse_cli_options(rest)
+            kwargs = {}
+            for k in ("daily_estimated_cost_limit", "monthly_estimated_cost_limit", "per_provider_limit", "per_role_limit", "discussion_mode_cost_warning_threshold", "cloud_model_warning_enabled", "budget_blocking_enabled"):
+                if k in options:
+                    kwargs[k] = float(options[k]) if k != "cloud_model_warning_enabled" and k != "budget_blocking_enabled" else options[k].lower() == "true"
+            return tracker.set_budget(**kwargs) if kwargs else {"status": "error", "message": "Provide --daily, --monthly, --per-provider, --per-role, --discussion-threshold, --cloud-warning, or --blocking."}
+        if command == "budget-reset":
+            return tracker.reset_budget()
+        if command == "alerts":
+            _, options = parse_cli_options(rest)
+            if options.get("history") == "true":
+                return {"alerts": tracker.get_alert_history(include_dismissed=False)}
+            return tracker.check_budget_alerts()
+        if command == "export":
+            _, options = parse_cli_options(rest)
+            fmt = options.get("format", "csv")
+            ws = options.get("workspace")
+            return tracker.export_usage(fmt=fmt, workspace=ws)
+        if command == "anomalies":
+            return tracker.detect_anomalies()
+        if command == "trends":
+            _, options = parse_cli_options(rest)
+            days = int(options.get("days", 7))
+            if options.get("monthly") == "true":
+                return tracker.get_monthly_trends()
+            return tracker.get_trends(days=days)
+        if command == "webhook":
+            _, options = parse_cli_options(rest)
+            sub = options.get("subcommand", rest[0] if rest else "status")
+            if sub == "status":
+                return tracker.get_webhook_status()
+            if sub == "set-url" and rest:
+                url = rest[1] if len(rest) > 1 else ""
+                return tracker.set_webhook_url(url, confirm=options.get("confirm") == "true")
+            if sub == "test":
+                return tracker.send_webhook_test(event_type=options.get("event", "budget_warning"))
+            if sub == "enable":
+                return tracker.enable_webhooks(confirm=options.get("confirm") == "true")
+            if sub == "disable":
+                return tracker.disable_webhooks()
+            if sub == "send-test":
+                from runtime.usage.webhooks import WebhookDelivery
+                delivery = WebhookDelivery()
+                return delivery.send_test(event_type=options.get("event", "budget_warning"))
+            if sub == "delivery-history":
+                from runtime.usage.webhooks import WebhookDelivery
+                delivery = WebhookDelivery()
+                limit = int(options.get("limit", 50))
+                return {"deliveries": delivery.get_delivery_history(limit=limit)}
+            if sub == "retry-failed":
+                from runtime.usage.webhooks import WebhookDelivery
+                delivery = WebhookDelivery()
+                if options.get("confirm") != "true":
+                    return {"status": "error", "message": "Retry requires --confirm true."}
+                return delivery.retry_failed()
+            if sub == "set-secret":
+                if options.get("confirm") != "true":
+                    return {"status": "error", "message": "Setting webhook secret requires --confirm true."}
+                secret = options.get("secret", "")
+                if not secret:
+                    return {"status": "error", "message": "Provide --secret <value>."}
+                tracker.settings.set("webhook_secret", secret)
+                tracker.settings.set("webhook_hmac_enabled", "true")
+                return {"status": "updated", "message": "Webhook HMAC secret set. Secret is stored securely and never logged."}
+            if sub == "rotate-secret":
+                if options.get("confirm") != "true":
+                    return {"status": "error", "message": "Rotating webhook secret requires --confirm true."}
+                import secrets
+                new_secret = secrets.token_hex(32)
+                tracker.settings.set("webhook_secret", new_secret)
+                return {"status": "rotated", "message": "Webhook HMAC secret rotated. Update your receiver verification."}
+            if sub == "signature-test":
+                from runtime.usage.webhooks import WebhookDelivery
+                delivery = WebhookDelivery()
+                payload_json = '{"event_type":"test","workspace":"default","level":"info","message":"HMAC signature test","timestamp":"' + utc_now() + '","source":"liuant-agentic-os"}'
+                headers = delivery._build_signature_headers(payload_json, "signature_test")
+                has_signature = "X-Liuant-Signature" in headers
+                has_timestamp = "X-Liuant-Timestamp" in headers
+                return {"hmac_enabled": delivery._is_hmac_enabled(), "has_signature_header": has_signature, "has_timestamp_header": has_timestamp, "message": "HMAC signature test complete." if has_signature else "HMAC not enabled or secret not set."}
+            return {"status": "error", "message": "Usage: webhook status|set-url <url> --confirm true|test|enable --confirm true|disable|send-test|delivery-history|retry-failed --confirm true|set-secret --confirm true|rotate-secret --confirm true|signature-test"}
+        if command == "discussion-costs":
+            _, options = parse_cli_options(rest)
+            ws = options.get("workspace")
+            disc_id = options.get("discussion-id")
+            latest = options.get("latest") == "true"
+            rounds = options.get("rounds") == "true"
+            costs = tracker.get_discussion_costs_by_round(discussion_id=disc_id, workspace=ws, latest=latest, rounds=rounds)
+            if latest and costs["discussions"]:
+                return {"latest": costs["discussions"][0], "total_cost": costs["total_cost"]}
+            return costs
+        if command == "cleanup-scheduler":
+            _, options = parse_cli_options(rest)
+            sub = options.get("subcommand", rest[0] if rest else "status")
+            if sub == "status":
+                return tracker.get_cleanup_scheduler_status()
+            if sub == "enable":
+                return tracker.enable_cleanup_scheduler(confirm=options.get("confirm") == "true")
+            if sub == "disable":
+                return tracker.disable_cleanup_scheduler()
+            if sub == "run-now":
+                dry_run = options.get("dry-run") == "true"
+                confirm = options.get("confirm") == "true"
+                export_before = options.get("export-before", "true").lower() == "true"
+                return tracker.run_cleanup_now(dry_run=dry_run, confirm=confirm, export_before=export_before)
+            return {"status": "error", "message": "Usage: cleanup-scheduler status|enable --confirm true|disable|run-now [--dry-run] [--confirm true] [--export-before true]"}
+        if command == "cleanup":
+            _, options = parse_cli_options(rest)
+            if options.get("dry-run") == "true" and options.get("show-export-plan") == "true":
+                return tracker.cleanup_dry_run_with_export_plan()
+            if options.get("dry-run") == "true" or not options.get("confirm"):
+                return tracker.cleanup_dry_run()
+            export_before = options.get("export-before-cleanup", "false").lower() == "true"
+            if export_before:
+                export_result = tracker.export_usage(fmt="json")
+                if export_result.get("status") != "exported":
+                    return {"status": "error", "message": "Export failed. Cleanup aborted."}
+            return tracker.cleanup_confirm()
+        return {"commands": ["summary [--workspace current|all|<name>]", "today [--workspace current]", "by-provider [--workspace current]", "by-role [--workspace current]", "reset --confirm true", "budget", "budget-set --daily 2.00 --monthly 30.00", "budget-reset", "alerts [--history]", "export --format csv|json|markdown [--workspace current]", "anomalies", "trends --days 7|30", "trends --monthly", "webhook status|set-url|test|enable|disable|send-test|delivery-history|retry-failed|set-secret|rotate-secret|signature-test", "discussion-costs [--latest] [--rounds] [--discussion-id <id>] [--workspace current]", "retention", "retention-set --days 90", "cleanup [--dry-run] [--confirm true] [--show-export-plan] [--export-before-cleanup]", "cleanup-scheduler status|enable|disable|run-now"]}
     if args.area == "serve":
         from runtime.api.simple_server import run_server
 

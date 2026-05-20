@@ -44,6 +44,7 @@ PROVIDER_SPECS = [
     ProviderSpec("anthropic", "Anthropic", "text", "anthropic", "https://api.anthropic.com", "ANTHROPIC_API_KEY", "claude-3-5-sonnet-latest", "claude-3-5-sonnet-latest", False, False, "placeholder", _capability("text"), ["claude-3-5-sonnet-latest", "claude-3-haiku-latest", "claude-3-opus-latest"]),
     ProviderSpec("gemini", "Google Gemini", "text", "gemini", "https://generativelanguage.googleapis.com", "GEMINI_API_KEY", "gemini-2.0-flash", "gemini-2.0-flash", False, False, "placeholder", _capability("text"), ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]),
     ProviderSpec("openrouter", "OpenRouter", "text", "openrouter", "https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "openai/gpt-4.1-mini", "openai/gpt-4.1-mini", False, False, "missing_key", _capability("text"), ["openai/gpt-4.1-mini", "anthropic/claude-3.5-sonnet", "google/gemini-2.0-flash"]),
+    ProviderSpec("amazon_bedrock", "Amazon Bedrock", "text", "amazon_bedrock", "", "", "us.amazon.nova-lite-v1:0", "us.amazon.nova-lite-v1:0", False, False, "needs_provider_setup", _capability("text"), ["us.amazon.nova-lite-v1:0", "us.amazon.nova-micro-v1:0", "us.amazon.nova-pro-v1:0"], "Amazon Bedrock Converse API integration."),
     ProviderSpec("groq", "Groq", "text", "groq", "https://api.groq.com/openai", "GROQ_API_KEY", "llama-3.1-8b-instant", "llama-3.1-8b-instant", False, False, "placeholder", _capability("text"), ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "mixtral-8x7b-32768"]),
     ProviderSpec("mistral", "Mistral", "text", "mistral", "", "MISTRAL_API_KEY", "mistral-small-latest", "", False, False, "placeholder", _capability("text"), ["mistral-small-latest"], "Config-ready placeholder."),
     ProviderSpec("together", "Together AI", "text", "together", "", "TOGETHER_API_KEY", "meta-llama/Llama-3.3-70B-Instruct-Turbo", "", False, False, "placeholder", _capability("text"), ["meta-llama/Llama-3.3-70B-Instruct-Turbo"], "Config-ready placeholder."),
@@ -103,6 +104,12 @@ class ModelHub:
         if category:
             rows = [row for row in rows if row.get("category") == category]
         return sorted(rows, key=lambda row: (row.get("category", ""), row.get("display_name") or row.get("name", "")))
+
+    def list_profiles(self) -> list[dict[str, Any]]:
+        self.ensure_defaults()
+        default_ids = {spec.name for spec in PROVIDER_SPECS}
+        rows = [self._sanitize(row) for row in list_records("model_providers")]
+        return [row for row in rows if row["id"] not in default_ids]
 
     def get_provider(self, provider_name: str) -> dict[str, Any]:
         self.ensure_defaults()
@@ -258,9 +265,32 @@ class ModelHub:
         provider = self.resolve_provider_for_task("text", provider_name)
         safe_meta = _safe_log_metadata(prompt, {"provider": provider["id"], "model": model or provider.get("default_model"), "workspace_name": workspace_name, **(metadata or {})})
         log_external_action("text_generation_started", "started", safe_meta)
+
+        # Auto-track provider health (v1.6.0)
+        import time
+        from runtime.usage.provider_health import ProviderHealthTracker
+        health_tracker = ProviderHealthTracker()
+        start_ms = time.monotonic()
+
         result = self._generate_text_once(provider, prompt, system_prompt, model, temperature, max_tokens)
+        elapsed_ms = int((time.monotonic() - start_ms) * 1000)
+
+        # Auto-record health based on result
         if result["status"] == "completed":
+            health_tracker.record_success(provider["id"], latency_ms=elapsed_ms)
             log_external_action("text_generation_completed", "completed", _safe_log_metadata(prompt, {"provider": result["provider"], "model": result["model"], "fallback_used": False, "workspace_name": workspace_name}))
+        elif result["status"] == "local_unreachable":
+            health_tracker.record_unavailable(provider["id"])
+        else:
+            err = result.get("error", "")
+            if "rate" in err.lower() and "limit" in err.lower():
+                health_tracker.record_rate_limit(provider["id"])
+            elif "timeout" in err.lower() or "timed out" in err.lower():
+                health_tracker.record_timeout(provider["id"])
+            else:
+                health_tracker.record_error(provider["id"], error=err, latency_ms=elapsed_ms)
+
+        if result["status"] == "completed":
             return result
 
         fallback_provider_name = self._setting_value("fallback_text_provider", "")
@@ -304,8 +334,7 @@ class ModelHub:
         resolved_model = model or provider.get("default_model") or ""
 
         yield {"type": "metadata", "content": "", "provider": provider["id"], "model": resolved_model, "role": role or "default", "fallback_used": False}
-
-        streaming_supported = provider_type in {"ollama", "openai", "openrouter", "groq", "lmstudio", "custom_openai_compatible"}
+        streaming_supported = provider_type in {"ollama", "openai", "openrouter", "groq", "lmstudio", "custom_openai_compatible", "azure_openai", "openai_compatible", "amazon_bedrock"}
 
         if not streaming_supported:
             result = self._generate_text_once(provider, prompt, system_prompt, model, temperature, max_tokens)
@@ -318,13 +347,33 @@ class ModelHub:
 
         if provider_type == "ollama":
             yield from self._stream_ollama(provider, prompt, system_prompt, resolved_model, temperature, max_tokens, role)
-        elif provider_type in {"openai", "openrouter", "groq", "lmstudio", "custom_openai_compatible"}:
+        elif provider_type in {"openai", "openrouter", "groq", "lmstudio", "custom_openai_compatible", "azure_openai", "openai_compatible"}:
             yield from self._stream_openai_compatible(provider, prompt, system_prompt, resolved_model, temperature, max_tokens, role)
+        elif provider_type == "amazon_bedrock":
+            yield from self._stream_bedrock(provider, prompt, system_prompt, resolved_model, temperature, max_tokens, role)
         else:
             result = self._generate_text_once(provider, prompt, system_prompt, model, temperature, max_tokens)
             if result["status"] == "completed":
                 yield {"type": "token", "content": result["text"], "provider": result["provider"], "model": result["model"], "role": role or "default", "fallback_used": False}
             yield {"type": "done", "content": "", "provider": provider["id"], "model": resolved_model, "role": role or "default", "fallback_used": False}
+
+    def _stream_bedrock(
+        self,
+        provider: dict[str, Any],
+        prompt: str,
+        system_prompt: str | None,
+        model: str,
+        temperature: float,
+        max_tokens: int | None,
+        role: str | None,
+    ):
+        from runtime.providers import bedrock
+        try:
+            for chunk in bedrock.stream_text(prompt, system_prompt, model, temperature, max_tokens):
+                yield {"type": "token", "content": chunk, "provider": provider["id"], "model": model, "role": role or "default", "fallback_used": False}
+            yield {"type": "done", "content": "", "provider": provider["id"], "model": model, "role": role or "default", "fallback_used": False}
+        except Exception as exc:
+            yield {"type": "error", "content": str(exc), "provider": provider["id"], "model": model, "role": role or "default", "fallback_used": False}
 
     def generate_image(self, prompt: str, provider_name: str | None = None, **kwargs: Any) -> dict[str, Any]:
         from runtime.generation.image import ImageGenerationManager
@@ -478,14 +527,21 @@ class ModelHub:
             return "ready"
         if row.get("name") == "local_hash_embedding":
             return "ready"
+        if provider_type == "amazon_bedrock":
+            from runtime.providers import bedrock
+            return bedrock.status()
         if capabilities.get("local") or provider_type in {"ollama", "lmstudio", "comfyui", "automatic1111", "comfyui_video"}:
             return row.get("status") if row.get("status") == "ready" else "local_unreachable"
-        if provider_type in {"anthropic", "gemini", "groq", "mistral", "together", "fireworks", "stability", "replicate", "ideogram", "leonardo", "runway", "pika", "luma", "kling", "openai_video", "replicate_video", "custom_video_api", "custom_image_api", "gemini_embedding", "cohere_embedding", "voyage_embedding", "local_sentence_transformers", "whisper_local", "deepgram", "assemblyai", "google_speech", "elevenlabs", "azure_tts", "google_tts", "piper_local", "coqui_local"}:
-            return "configured" if env_var and _read_secret(env_var) else "placeholder"
-        return "configured" if not env_var or _read_secret(env_var) else "missing_key"
+        if env_var and not _read_secret(env_var):
+            return "needs_provider_setup"
+        return "configured"
 
     def _test_status(self, row: dict[str, Any]) -> str:
         capabilities = row.get("capabilities") or {}
+        provider_type = row.get("provider_type", "")
+        if provider_type == "amazon_bedrock":
+            from runtime.providers import bedrock
+            return bedrock.status()
         if row.get("name") == "hyperframes_skill":
             return "ready"
         if row.get("name") == "local_hash_embedding":
@@ -494,12 +550,7 @@ class ModelHub:
             return "ready" if self._can_reach(row.get("base_url", "")) else "local_unreachable"
         env_var = row.get("api_key_env") or row.get("env_var") or ""
         if env_var and not _read_secret(env_var):
-            return "missing_key"
-        provider_type = row.get("provider_type", "")
-        if provider_type in {"anthropic", "gemini", "groq"}:
-            return "configured" if env_var and _read_secret(env_var) else "placeholder"
-        if row.get("status") == "placeholder":
-            return "placeholder"
+            return "needs_provider_setup"
         return "configured"
 
     def _status_message(self, row: dict[str, Any], status: str) -> str:
@@ -509,6 +560,8 @@ class ModelHub:
             return "Provider endpoint or local skill is ready."
         if status == "missing_key":
             return f"Missing {row.get('api_key_env') or row.get('env_var') or 'provider key'} in .env, .env.local, or environment."
+        if status == "needs_provider_setup":
+            return "AWS credentials or API key missing. Please run setup-guide for instructions."
         if status == "local_unreachable":
             return f"Local endpoint is not reachable at {row.get('base_url') or 'configured URL'}."
         if status == "placeholder":
@@ -530,13 +583,16 @@ class ModelHub:
         base = _base_text_response(provider_id, resolved_model)
         if provider.get("category") != "text":
             return {**base, "status": "needs_provider_setup", "error": "Selected provider is not a text provider."}
+        if provider_type == "amazon_bedrock":
+            from runtime.providers import bedrock
+            return bedrock.generate_text(prompt, system_prompt, resolved_model, temperature, max_tokens)
         if provider_type in {"anthropic", "gemini", "groq", "mistral", "together", "fireworks"}:
             return self._generate_provider_sdk(provider, prompt, system_prompt, resolved_model, temperature, max_tokens)
         if provider_type == "ollama":
             return self._generate_ollama(provider, prompt, system_prompt, resolved_model, temperature, max_tokens)
         if provider_type == "lmstudio":
             return self._generate_openai_compatible(provider, prompt, system_prompt, resolved_model, temperature, max_tokens, requires_key=False)
-        if provider_type in {"openai", "openrouter", "custom_openai_compatible"}:
+        if provider_type in {"openai", "openrouter", "custom_openai_compatible", "azure_openai", "openai_compatible"}:
             return self._generate_openai_compatible(provider, prompt, system_prompt, resolved_model, temperature, max_tokens, requires_key=True)
         return {**base, "status": "placeholder", "error": "Provider is not implemented for text generation."}
 
@@ -974,12 +1030,18 @@ def _safe_log_metadata(prompt: str, metadata: dict[str, Any]) -> dict[str, Any]:
 
 def _redact_error(exc: BaseException) -> str:
     text = str(exc)
-    for env_var in ("OPENAI_API_KEY", "OPENROUTER_API_KEY", "CUSTOM_OPENAI_API_KEY"):
+    for env_var in (
+        "OPENAI_API_KEY", "OPENROUTER_API_KEY", "CUSTOM_OPENAI_API_KEY",
+        "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "GROQ_API_KEY",
+        "MISTRAL_API_KEY", "TOGETHER_API_KEY", "FIREWORKS_API_KEY",
+        "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"
+    ):
         secret = _read_secret(env_var)
         if secret:
             text = text.replace(secret, mask_secret(secret))
     text = re.sub(r"Bearer\s+[A-Za-z0-9._\-]+", "Bearer [redacted]", text)
     text = re.sub(r"sk-[A-Za-z0-9_\-]+", "sk-[redacted]", text)
+    text = re.sub(r"AIzaSy[A-Za-z0-9_\-]+", "AIzaSy[redacted]", text)
     return text[:500]
 
 

@@ -38,6 +38,10 @@ TABLES = {
     "backups",
     "secret_records",
     "sessions",
+    "usage_events",
+    "alert_history",
+    "webhook_deliveries",
+    "discussion_cost_rounds",
 }
 
 
@@ -61,16 +65,103 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
     conn = conn or sqlite3.connect(path)
     try:
         for table in TABLES:
-            conn.execute(
-                f"""
-                CREATE TABLE IF NOT EXISTS {table} (
-                    id TEXT PRIMARY KEY,
-                    data TEXT NOT NULL,
-                    created_at TEXT,
-                    updated_at TEXT
+            if table == "usage_events":
+                conn.execute(
+                    f"""
+                    CREATE TABLE IF NOT EXISTS {table} (
+                        id TEXT PRIMARY KEY,
+                        provider TEXT,
+                        model TEXT,
+                        model_role TEXT,
+                        feature TEXT,
+                        estimated_input_tokens INTEGER,
+                        estimated_output_tokens INTEGER,
+                        estimated_total_tokens INTEGER,
+                        estimated_cost REAL,
+                        estimated INTEGER,
+                        fallback_used INTEGER,
+                        status TEXT,
+                        discussion_id TEXT,
+                        is_local INTEGER,
+                        timestamp TEXT,
+                        workspace_name TEXT,
+                        latency_ms INTEGER
+                    )
+                    """
                 )
-                """
-            )
+            elif table == "alert_history":
+                conn.execute(
+                    f"""
+                    CREATE TABLE IF NOT EXISTS {table} (
+                        id TEXT PRIMARY KEY,
+                        level TEXT,
+                        type TEXT,
+                        message TEXT,
+                        pct REAL,
+                        daily_cost REAL,
+                        daily_limit REAL,
+                        monthly_cost REAL,
+                        monthly_limit REAL,
+                        workspace_name TEXT,
+                        dismissed INTEGER,
+                        timestamp TEXT
+                    )
+                    """
+                )
+            elif table == "webhook_deliveries":
+                conn.execute(
+                    f"""
+                    CREATE TABLE IF NOT EXISTS {table} (
+                        id TEXT PRIMARY KEY,
+                        event_type TEXT,
+                        workspace TEXT,
+                        url_hash TEXT,
+                        status TEXT,
+                        status_code INTEGER,
+                        retry_count INTEGER,
+                        error_redacted TEXT,
+                        created_at TEXT,
+                        delivered_at TEXT,
+                        payload_hash TEXT,
+                        test_mode INTEGER,
+                        timestamp TEXT
+                    )
+                    """
+                )
+            elif table == "discussion_cost_rounds":
+                conn.execute(
+                    f"""
+                    CREATE TABLE IF NOT EXISTS {table} (
+                        id TEXT PRIMARY KEY,
+                        discussion_id TEXT,
+                        round_number INTEGER,
+                        phase TEXT,
+                        role TEXT,
+                        provider TEXT,
+                        model TEXT,
+                        input_tokens INTEGER,
+                        output_tokens INTEGER,
+                        total_tokens INTEGER,
+                        estimated_cost REAL,
+                        exact_cost_available INTEGER,
+                        fallback_used INTEGER,
+                        status TEXT,
+                        timestamp TEXT,
+                        workspace_name TEXT
+                    )
+                    """
+                )
+            else:
+                conn.execute(
+                    f"""
+                    CREATE TABLE IF NOT EXISTS {table} (
+                        id TEXT PRIMARY KEY,
+                        data TEXT NOT NULL,
+                        created_at TEXT,
+                        updated_at TEXT
+                    )
+                    """
+                )
         conn.commit()
     finally:
         if own_conn:
@@ -80,23 +171,33 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
 def insert_record(table: str, item: dict[str, Any]) -> dict[str, Any]:
     _check_table(table)
     with connect() as conn:
-        conn.execute(
-            f"INSERT OR REPLACE INTO {table} (id, data, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (
-                item["id"],
-                json.dumps(item, sort_keys=True),
-                item.get("created_at"),
-                item.get("updated_at") or item.get("decided_at") or item.get("last_run_at"),
-            ),
-        )
+        if table in ("usage_events", "alert_history", "webhook_deliveries", "discussion_cost_rounds"):
+            keys = ", ".join(item.keys())
+            placeholders = ", ".join(["?"] * len(item))
+            conn.execute(f"INSERT OR REPLACE INTO {table} ({keys}) VALUES ({placeholders})", list(item.values()))
+        else:
+            conn.execute(
+                f"INSERT OR REPLACE INTO {table} (id, data, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                (
+                    item["id"],
+                    json.dumps(item, sort_keys=True),
+                    item.get("created_at"),
+                    item.get("updated_at") or item.get("decided_at") or item.get("last_run_at"),
+                ),
+            )
     return item
 
 
 def list_records(table: str) -> list[dict[str, Any]]:
     _check_table(table)
     with connect() as conn:
-        rows = conn.execute(f"SELECT data FROM {table} ORDER BY created_at DESC, rowid DESC").fetchall()
-    return [json.loads(row["data"]) for row in rows]
+        if table in ("usage_events", "alert_history", "webhook_deliveries", "discussion_cost_rounds"):
+            cursor = conn.execute(f"SELECT * FROM {table} ORDER BY timestamp DESC, rowid DESC")
+            cols = [d[0] for d in cursor.description]
+            return [dict(zip(cols, r)) for r in cursor.fetchall()]
+        else:
+            rows = conn.execute(f"SELECT data FROM {table} ORDER BY created_at DESC, rowid DESC").fetchall()
+            return [json.loads(row["data"]) for row in rows]
 
 
 def get_record(table: str, item_id: str) -> dict[str, Any] | None:
@@ -119,6 +220,14 @@ def delete_record(table: str, item_id: str) -> int:
     _check_table(table)
     with connect() as conn:
         cursor = conn.execute(f"DELETE FROM {table} WHERE id = ?", (item_id,))
+        return cursor.rowcount
+
+
+def delete_all_records(table: str) -> int:
+    """Delete all records from a table."""
+    _check_table(table)
+    with connect() as conn:
+        cursor = conn.execute(f"DELETE FROM {table}")
         return cursor.rowcount
 
 

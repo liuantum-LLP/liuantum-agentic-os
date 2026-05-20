@@ -5,10 +5,10 @@
 ```bash
 git clone <repo-url>
 cd liuant_ai
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
-pytest -q
+python3 -m venv venv
+source venv/bin/activate
+pip install -e .
+python3 -m pytest -q
 ```
 
 ## Desktop Frontend
@@ -24,8 +24,8 @@ npm run tauri:dev   # requires Rust/Cargo
 ## Running Tests
 
 ```bash
-pytest -q                    # all tests
-pytest -q tests/path.py      # specific file
+python3 -m pytest -q                    # all tests
+python3 -m pytest -q tests/path.py      # specific file
 ```
 
 ## Coding Style
@@ -53,6 +53,8 @@ pytest -q tests/path.py      # specific file
 ## Safety Rules
 
 - **No auto-send.** Gmail sending, social publishing, Telegram auto-reply must remain approval-gated.
+- **No autonomous interactions.** Browser and Desktop automation MUST trigger the Approval Queue for destructive/external actions.
+- **Voice is simulation-first.** Voice/microphone handling must remain explicit; no always-listening.
 - **No secrets in logs.** Use the `mask_secret` helper.
 - **No prompt injection bypass.** External messages (Telegram, webhooks) are untrusted input.
 - **No cloud dependency for core routing.** The ChatIntentRouter uses deterministic pattern matching.

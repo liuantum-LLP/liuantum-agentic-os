@@ -65,6 +65,7 @@ async function loadLiveData() {
     live.innerHTML = liveHeader(page) + results.map((result) => renderEndpoint(page, result.endpoint, result.data)).join("");
     wireApprovalButtons();
     wireSettingsButtons();
+    wireWorkflowSettings();
     wirePermissionButtons();
     wireModeToggles();
     wireImageGenerateButton();
@@ -959,6 +960,180 @@ function escapeHtml(value) {
     '"': "&quot;",
     "'": "&#39;",
   })[char]);
+}
+
+function wireWorkflowSettings() {
+  const showResult = (title, data) => {
+    const panel = document.getElementById("workflow-panel-output");
+    const titleNode = document.getElementById("output-title");
+    const contentNode = document.getElementById("output-content");
+    if (!panel || !titleNode || !contentNode) return;
+    
+    titleNode.textContent = title;
+    contentNode.textContent = JSON.stringify(data, null, 2);
+    panel.classList.remove("hidden");
+  };
+
+  const bindClick = (btnId, callback) => {
+    const btn = document.getElementById(btnId);
+    if (btn && !btn.dataset.bound) {
+      btn.dataset.bound = "true";
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        try {
+          await callback(btn);
+        } catch (e) {
+          toast(String(e), true);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    }
+  };
+
+  // Workflow Management
+  bindClick("btn-export-wf", async () => {
+    const wfId = document.getElementById("export-wf-id")?.value?.trim();
+    const outPath = document.getElementById("export-wf-path")?.value?.trim();
+    if (!wfId || !outPath) return toast("Workflow ID and Output Path required", true);
+
+    const res = await fetch(`${API_BASE}/api/skills/workflows/${wfId}/export`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ output_path: outPath })
+    });
+    const data = await res.json();
+    showResult("Export Workflow Result", data);
+    toast(res.ok && data.status !== "error" ? "Workflow exported successfully" : "Export failed", !res.ok || data.status === "error");
+  });
+
+  bindClick("btn-import-wf", async () => {
+    const archivePath = document.getElementById("import-wf-path")?.value?.trim();
+    const confirm = document.getElementById("import-wf-confirm")?.checked || false;
+    if (!archivePath) return toast("Archive Path required", true);
+
+    const res = await fetch(`${API_BASE}/api/skills/workflows/import`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ archive_path: archivePath, confirm })
+    });
+    const data = await res.json();
+    showResult("Import Workflow Result", data);
+    toast(res.ok && data.status === "imported" ? "Workflow imported successfully" : (data.message || "Import failed"), !res.ok || data.status !== "imported");
+  });
+
+  bindClick("btn-validate-wf", async () => {
+    const archivePath = document.getElementById("validate-wf-path")?.value?.trim();
+    if (!archivePath) return toast("Archive Path required", true);
+
+    const res = await fetch(`${API_BASE}/api/skills/workflows/validate-file`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ archive_path: archivePath })
+    });
+    const data = await res.json();
+    showResult("Validate Package Result", data);
+    toast(res.ok && data.status !== "failed" ? "Validation passed" : "Validation failed", !res.ok || data.status === "failed");
+  });
+
+  // Workflow Packs
+  bindClick("btn-export-pack", async () => {
+    const idsText = document.getElementById("pack-wf-ids")?.value?.trim();
+    const packId = document.getElementById("pack-id")?.value?.trim();
+    const outPath = document.getElementById("pack-path")?.value?.trim();
+    const name = document.getElementById("pack-name")?.value?.trim();
+    const version = document.getElementById("pack-version")?.value?.trim();
+    
+    if (!packId || !outPath) return toast("Pack ID and Output Path required", true);
+    const workflowIds = idsText ? idsText.split(",").map(s => s.trim()).filter(Boolean) : [];
+
+    const res = await fetch(`${API_BASE}/api/skills/workflows/packs/export`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        workflow_ids: workflowIds,
+        pack_id: packId,
+        output_path: outPath,
+        metadata: { name, version }
+      })
+    });
+    const data = await res.json();
+    showResult("Export Pack Result", data);
+    toast(res.ok && data.status !== "error" ? "Pack exported successfully" : "Export failed", !res.ok || data.status === "error");
+  });
+
+  bindClick("btn-import-pack", async () => {
+    const archivePath = document.getElementById("import-pack-path")?.value?.trim();
+    const confirm = document.getElementById("import-pack-confirm")?.checked || false;
+    if (!archivePath) return toast("Archive Path required", true);
+
+    const res = await fetch(`${API_BASE}/api/skills/workflows/packs/import`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ archive_path: archivePath, confirm })
+    });
+    const data = await res.json();
+    showResult("Import Pack Result", data);
+    toast(res.ok && data.status === "imported" ? "Pack imported successfully" : (data.message || "Import failed"), !res.ok || data.status !== "imported");
+  });
+
+  bindClick("btn-inspect-pack", async () => {
+    const archivePath = document.getElementById("inspect-pack-path")?.value?.trim();
+    if (!archivePath) return toast("Archive Path required", true);
+
+    const res = await fetch(`${API_BASE}/api/skills/workflows/packs/inspect`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ archive_path: archivePath })
+    });
+    const data = await res.json();
+    showResult("Inspect Pack Result", data);
+    toast(res.ok && data.status === "ok" ? "Pack inspected successfully" : "Inspection failed", !res.ok || data.status !== "ok");
+  });
+
+  // Backup & Restore
+  bindClick("btn-val-backup", async () => {
+    const path = document.getElementById("val-backup-path")?.value?.trim();
+    if (!path) return toast("Backup file path required", true);
+
+    const res = await fetch(`${API_BASE}/api/backup/validate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ file_path: path })
+    });
+    const data = await res.json();
+    showResult("Validate Backup Result", data);
+    toast(res.ok && data.status !== "failed" ? "Backup validation passed" : "Backup validation failed", !res.ok || data.status === "failed");
+  });
+
+  bindClick("btn-inspect-backup", async () => {
+    const path = document.getElementById("inspect-backup-path")?.value?.trim();
+    if (!path) return toast("Backup file path required", true);
+
+    const res = await fetch(`${API_BASE}/api/backup/inspect`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ file_path: path })
+    });
+    const data = await res.json();
+    showResult("Inspect Backup Result", data);
+    toast(res.ok && data.status === "ok" ? "Backup inspected successfully" : "Inspection failed", !res.ok || data.status !== "ok");
+  });
+
+  bindClick("btn-restore-backup", async () => {
+    const path = document.getElementById("restore-backup-path")?.value?.trim();
+    const confirm = document.getElementById("restore-backup-confirm")?.checked || false;
+    if (!path) return toast("Backup file path required", true);
+
+    const res = await fetch(`${API_BASE}/api/backup/restore`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ file_path: path, confirm })
+    });
+    const data = await res.json();
+    showResult("Restore Backup Result", data);
+    toast(res.ok && data.status === "restored" ? "Backup restored successfully" : (data.message || "Restore failed"), !res.ok || data.status !== "restored");
+  });
 }
 
 loadLiveData();

@@ -303,8 +303,52 @@ def test_provider_status_derived_correctly(monkeypatch):
     hub = ModelHub()
     hub.ensure_defaults()
     anthropic = hub.get_provider("anthropic")
-    assert anthropic["status"] in ("placeholder", "configured")
+    assert anthropic["status"] in ("placeholder", "configured", "needs_provider_setup")
     groq = hub.get_provider("groq")
-    assert groq["status"] in ("placeholder", "configured")
+    assert groq["status"] in ("placeholder", "configured", "needs_provider_setup")
     gemini = hub.get_provider("gemini")
-    assert gemini["status"] in ("placeholder", "configured")
+    assert gemini["status"] in ("placeholder", "configured", "needs_provider_setup")
+
+
+# ---------------------------------------------------------------------------
+# 14. Gemini integration validations for v2.8.0
+# ---------------------------------------------------------------------------
+
+def test_gemini_missing_key_returns_needs_setup_strictly():
+    hub = ModelHub()
+    hub.ensure_defaults()
+    row = hub.get_provider("gemini")
+    status = hub._derive_status(row)
+    assert status == "needs_provider_setup"
+
+
+def test_gemini_status_does_not_expose_key():
+    hub = ModelHub()
+    hub.ensure_defaults()
+    row = hub.get_provider("gemini")
+    sanitized = hub._sanitize(row)
+    assert "api_key" not in sanitized
+    assert sanitized["api_key_masked"] == ""
+
+
+def test_gemini_model_role_works(monkeypatch):
+    from runtime.model_roles import ModelRoleManager
+    from runtime.model_router import get_model_for_role
+
+    rm = ModelRoleManager()
+    rm.ensure_defaults()
+    rm.set_role("thinking", "gemini", "gemini-1.5-pro")
+
+    result = get_model_for_role("thinking", rm)
+    assert result["configured"] is True
+    assert result["provider"] == "gemini"
+    assert result["model"] == "gemini-1.5-pro"
+
+
+def test_gemini_errors_are_redacted():
+    from runtime.providers.registry import _redact_error
+    error_msg = "Google Gemini call failed: API key AIzaSyFakeKey123456789 is wrong"
+    redacted = _redact_error(Exception(error_msg))
+    assert "AIzaSyFakeKey123456789" not in redacted
+    assert "[redacted]" in redacted
+

@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "pack_id": "hello-starter-pack",
+  "name": "Hello Starter Skill Pack",
+  "version": "0.1.0",
+  "description": "Minimal starter pack with a greeting skill. Perfect for testing the skill pack system.",
+  "author": "Liuant contributors",
+  "license": "MIT",
+  "homepage": null,
+  "repository": null,
+  "tags": ["hello", "starter", "greeting", "minimal"],
+  "skills": [
+    {
+      "id": "hello-skill",
+      "version": "0.1.0",
+      "path": "skills/hello-skill"
+    }
+  ],
+  "created_at": "2026-05-19T00:00:00+00:00",
+  "liuant_min_version": "2.2.0"
+}

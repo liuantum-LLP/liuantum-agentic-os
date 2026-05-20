@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "id": "hello-skill",
+  "name": "Hello Skill",
+  "version": "0.1.0",
+  "description": "A minimal starter skill that greets the user. Demonstrates the basic skill structure with no permissions required.",
+  "author": "Liuant contributors",
+  "license": "MIT",
+  "entrypoint": "skill.py",
+  "runtime": "python",
+  "category": "utility",
+  "permissions": [],
+  "commands": [
+    {
+      "name": "hello",
+      "description": "Greet the user with a personalized message.",
+      "input_schema": {
+        "message": {
+          "type": "string",
+          "description": "Name or message to greet"
+        }
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "type": "keyword",
+      "pattern": "hello",
+      "description": "Trigger when user says hello"
+    }
+  ],
+  "ui": {},
+  "tags": ["starter", "greeting", "minimal"]
+}
